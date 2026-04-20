@@ -666,7 +666,6 @@ function renderDash(){
         pendingTxs.slice(0,5).map(t=>txRow(t,false)).join('')}
     </div>`;
 }
-}
 
 function renderTx(){
   const pending=S.transactions.filter(t=>t.status==='pending');
