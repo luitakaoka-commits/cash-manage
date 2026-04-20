@@ -465,7 +465,7 @@ function bankPendingOut(bankId){
 // 立替内訳
 function lendingBreakdown(){
   const today=jstToday();
-  const pending=S.transactions.filter(t=>t.status==='pending'&&t.date>=today&&t.type!=='income');
+  const pending=S.transactions.filter(t=>t.status==='pending'&&t.type!=='income');
   let real=0,lending=0;
   pending.forEach(t=>{const a=+t.amount||0;if(t.isLending)lending+=a;else real+=a;});
   return{real,lending};
@@ -481,7 +481,8 @@ function bankName(id){return(S.banks.find(b=>b.id===id)||{name:''}).name;}
 
 function txRow(t,showActions=true){
   const today=jstToday();
-  const canComplete=t.status==='pending'&&t.date<today;
+ const canComplete=t.status==='pending'&&t.date<today&&!t.isLending;
+const canCollect=t.status==='pending'&&t.isLending;
   const isIncome=t.type==='income';
   const amtColor=isIncome?'text-emerald-400':'text-red-400';
   const sign=isIncome?'+':'-';
@@ -503,7 +504,8 @@ function txRow(t,showActions=true){
     </div>
     ${t.memo?`<div class="text-slate-600 text-xs pl-1">${t.memo}</div>`:''}
     ${showActions?`<div class="flex gap-2 mt-1 w-full justify-end">
-      ${canComplete?`<button onclick="completeTx('${t.id}')" class="bsm bsm-g">✓ 完了</button>`:''}
+    ${canComplete?`<button onclick="completeTx('${t.id}')" class="bsm bsm-g">✓ 完了</button>`:''}
+${canCollect?`<button onclick="collectLending('${t.id}')" class="bsm bsm-teal">💰 回収完了</button>`:''}
       <button onclick="openEditTx('${t.id}')" class="bsm bsm-y">編集</button>
       <button onclick="deleteTx('${t.id}')" class="bsm bsm-r">削除</button>
     </div>`:''}
@@ -666,15 +668,17 @@ function renderDash(){
 }
 
 function renderTx(){
-  const pending=S.transactions.filter(t=>t.status==='pending');
-  const completed=S.transactions.filter(t=>t.status==='completed');
-  const list=txTab==='pending'?pending:completed;
-  document.getElementById('tx-content').innerHTML=`
-    <div class="flex gap-2 mb-3">
-      <button onclick="setTxTab('pending')" class="${txTab==='pending'?'tab-a':'tab-i'}">未完了 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${pending.length}</span></button>
-      <button onclick="setTxTab('completed')" class="${txTab==='completed'?'tab-a':'tab-i'}">完了済 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${completed.length}</span></button>
-    </div>
-    <div class="card">${list.length===0?`<div class="empty">取引なし</div>`:list.map(t=>txRow(t,true)).join('')}</div>`;
+const pending=S.transactions.filter(t=>t.status==='pending');
+const completed=S.transactions.filter(t=>t.status==='completed');
+const collected=S.transactions.filter(t=>t.status==='collected');
+const list=txTab==='pending'?pending:txTab==='completed'?completed:collected;
+document.getElementById('tx-content').innerHTML=`
+  <div class="flex gap-2 mb-3 flex-wrap">
+    <button onclick="setTxTab('pending')" class="${txTab==='pending'?'tab-a':'tab-i'}">未完了 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${pending.length}</span></button>
+    <button onclick="setTxTab('completed')" class="${txTab==='completed'?'tab-a':'tab-i'}">完了済 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${completed.length}</span></button>
+    <button onclick="setTxTab('collected')" class="${txTab==='collected'?'tab-a':'tab-i'}">回収済 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${collected.length}</span></button>
+  </div>
+  <div class="card">${list.length===0?`<div class="empty">取引なし</div>`:list.map(t=>txRow(t,true)).join('')}</div>`;
 }
 
 function renderAcc(){
@@ -870,7 +874,13 @@ window.completeTx=async function(id){
   batch.update(dRef(uid,'transactions',id),{status:'completed'});
   await batch.commit();toast('取引を完了しました');
 };
-
+window.collectLending=async function(id){
+  const t=S.transactions.find(x=>x.id===id);if(!t)return;
+  const batch=writeBatch(db);
+  // 立替金は口座残高に影響しないためステータスのみ更新
+  batch.update(dRef(uid,'transactions',id),{status:'collected'});
+  await batch.commit();toast('立替金の回収を完了しました');
+};
 // 銀行
 window.addBank=async function(){
   const name=document.getElementById('b-name').value.trim();if(!name)return;
