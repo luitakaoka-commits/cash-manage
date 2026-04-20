@@ -269,7 +269,7 @@ select.inp option{background:#0f1623;}
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{getFirestore,enableIndexedDbPersistence,collection,doc,addDoc,updateDoc,deleteDoc,setDoc,getDoc,query,orderBy,limit,onSnapshot,writeBatch}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{initializeFirestore,persistentLocalCache,collection,doc,addDoc,updateDoc,deleteDoc,setDoc,getDoc,query,orderBy,limit,onSnapshot,writeBatch}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // =============================================
 // 🔧 Firebase設定をここに入力してください
@@ -286,9 +286,7 @@ const firebaseConfig = {
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
-const db=getFirestore(app);
-enableIndexedDbPersistence(db).catch(()=>{});
-
+const db=initializeFirestore(app,{localCache:persistentLocalCache()});
 // =========================================================
 // ユーティリティ
 // =========================================================
