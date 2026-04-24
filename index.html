@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<meta name="theme-color" content="#080c14"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="MoneyFlow"/>
+<title>MoneyFlow</title>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;}
+body{font-family:'Noto Sans JP',sans-serif;background:#080c14;color:#e2e8f0;min-height:100dvh;}
+:root{
+  --bg1:#080c14;--bg2:#0f1623;--bg3:#151e2e;--bg4:#1a2438;
+  --bdr:rgba(255,255,255,0.07);
+  --gold:#f0c060;--green:#34d399;--red:#f87171;--blue:#60a5fa;
+  --purple:#a78bfa;--amber:#fbbf24;--teal:#2dd4bf;
+}
+.card{background:var(--bg2);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;}
+.card-hd{padding:10px 14px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4b5e7a;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;}
+.list-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bdr);}
+.list-row:last-child{border-bottom:none;}
+.inp{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:9px 11px;color:#e2e8f0;font-size:14px;width:100%;outline:none;font-family:inherit;}
+.inp:focus{border-color:rgba(96,165,250,0.5);}
+select.inp option{background:#0f1623;}
+.btn-p{background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;font-weight:700;padding:9px 18px;border-radius:8px;font-size:14px;transition:opacity .15s;}
+.btn-p:active{opacity:.8;}
+.btn-s{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:#e2e8f0;font-weight:600;padding:9px 18px;border-radius:8px;font-size:14px;}
+.btn-d{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;font-weight:600;padding:9px 18px;border-radius:8px;font-size:14px;}
+.btn-add{background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);color:#93c5fd;font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;}
+.bsm{padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;}
+.bsm-g{background:rgba(52,211,153,0.15);border:1px solid rgba(52,211,153,0.3);color:#6ee7b7;}
+.bsm-y{background:rgba(100,116,139,0.2);border:1px solid rgba(100,116,139,0.3);color:#94a3b8;}
+.bsm-r{background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#fca5a5;}
+.bsm-teal{background:rgba(45,212,191,0.15);border:1px solid rgba(45,212,191,0.3);color:#5eead4;}
+.tab-a{background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);color:#93c5fd;font-weight:700;padding:7px 16px;border-radius:8px;font-size:13px;}
+.tab-i{background:rgba(255,255,255,0.04);border:1px solid var(--bdr);color:#475569;font-weight:600;padding:7px 16px;border-radius:8px;font-size:13px;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;flex:1;font-size:11px;font-weight:600;border-radius:8px;}
+.nav-a{color:#60a5fa;}.nav-i{color:#2d3f55;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;align-items:flex-end;z-index:100;backdrop-filter:blur(8px);}
+.modal-box{background:#0f1623;border:1px solid rgba(255,255,255,0.1);border-radius:20px 20px 0 0;padding:20px;width:100%;max-height:90dvh;overflow-y:auto;}
+.lbl{font-size:11px;font-weight:700;color:#3d5070;margin-bottom:4px;display:block;letter-spacing:.05em;text-transform:uppercase;}
+.empty{padding:24px;text-align:center;color:#1e2d40;font-size:13px;}
+/* バーグラフ */
+.bar-wrap{height:8px;background:rgba(255,255,255,0.05);border-radius:99px;overflow:hidden;margin-top:5px;}
+.bar-fill{height:100%;border-radius:99px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+/* バッジ */
+.tb{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;}
+.tb-cc{background:rgba(167,139,250,0.2);color:#c4b5fd;}
+.tb-wd{background:rgba(248,113,113,0.2);color:#fca5a5;}
+.tb-in{background:rgba(52,211,153,0.2);color:#6ee7b7;}
+.tb-tr{background:rgba(96,165,250,0.2);color:#93c5fd;}
+.tb-iv{background:rgba(251,191,36,0.2);color:#fde68a;}
+.tb-ld{background:rgba(45,212,191,0.2);color:#5eead4;}
+/* 立替バッジ */
+.lending-tag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;background:rgba(45,212,191,0.15);border:1px solid rgba(45,212,191,0.3);color:#5eead4;}
+/* トースト */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:200;padding:9px 20px;border-radius:99px;font-size:13px;font-weight:600;transition:opacity .3s;pointer-events:none;white-space:nowrap;}
+/* チェックボックス */
+.chk-wrap{display:flex;align-items:center;gap:8px;padding:10px 0;}
+.chk-wrap input[type=checkbox]{width:18px;height:18px;accent-color:#2dd4bf;cursor:pointer;}
+/* 収入スケジュール表示 */
+.income-sched{background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:10px;padding:10px 12px;font-size:12px;}
+/* JST時計 */
+#jst-clock{font-size:11px;color:#3d5070;letter-spacing:.05em;font-variant-numeric:tabular-nums;}
+/* 計算式トグル */
+.formula-box{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:8px 10px;font-size:11px;color:#4b5e7a;line-height:1.8;margin-top:6px;}
+.formula-box .fval{color:#93c5fd;font-weight:600;}
+.formula-box .fop{color:#4b5e7a;}
+.formula-box .ftotal{color:#34d399;font-weight:700;font-size:12px;}
+.formula-box .fwarn{color:#f87171;font-size:10px;}
+/* 負担金額2段表示 */
+.burden-main{font-size:1.25rem;font-weight:800;color:#f87171;}
+.burden-real{font-size:0.85rem;font-weight:600;color:#fca5a5;margin-top:1px;}
+/* 月別棒グラフ */
+.month-bar-wrap{display:flex;align-items:flex-end;gap:6px;height:120px;}
+.month-bar-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;}
+.month-bar-pair{display:flex;align-items:flex-end;gap:2px;width:100%;}
+.month-bar-a{background:#f87171;border-radius:3px 3px 0 0;flex:1;min-height:2px;}
+.month-bar-b{background:#2dd4bf;border-radius:3px 3px 0 0;flex:1;min-height:2px;}
+.month-bar-lbl{font-size:9px;color:#4b5e7a;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+</style>
+</head>
+<body>
+<div id="toast" class="opacity-0"></div>
+
+<!-- ===== 認証画面 ===== -->
+<div id="auth-screen" class="min-h-dvh flex items-center justify-center px-5">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <div class="text-5xl mb-3">💰</div>
+      <h1 class="text-2xl font-black text-white tracking-tight">MoneyFlow</h1>
+      <p class="text-slate-600 text-sm mt-1">キャッシュフロー管理</p>
+    </div>
+    <div class="card p-5 space-y-4">
+      <div><label class="lbl">メールアドレス</label><input id="a-email" type="email" class="inp" placeholder="example@email.com"/></div>
+      <div><label class="lbl">パスワード</label><input id="a-pass" type="password" class="inp" placeholder="6文字以上"/></div>
+      <div id="a-err" class="text-red-400 text-xs min-h-4"></div>
+      <button onclick="doLogin()" class="btn-p w-full py-3">ログイン</button>
+      <button onclick="doRegister()" class="btn-s w-full py-3">新規登録</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== メインアプリ ===== -->
+<div id="app-screen" class="hidden pb-20">
+
+  <!-- ダッシュボード -->
+  <div id="pg-dashboard">
+    <div class="sticky top-0 z-10 bg-[#080c14]/90 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5 flex justify-between items-center">
+      <div>
+        <h1 class="text-lg font-black text-white">💰 MoneyFlow</h1>
+        <div id="jst-clock">-- : -- : -- JST</div>
+      </div>
+      <button onclick="openTxModal()" class="btn-p py-2 px-4 text-sm">＋ 取引追加</button>
+    </div>
+    <div id="dash-content" class="px-4 py-4 space-y-3"></div>
+  </div>
+
+  <!-- 取引一覧 -->
+  <div id="pg-tx" class="hidden">
+    <div class="sticky top-0 z-10 bg-[#080c14]/90 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5 flex justify-between items-center">
+      <h1 class="text-lg font-black text-white">📋 取引一覧</h1>
+      <button onclick="openTxModal()" class="btn-p py-2 px-4 text-sm">＋ 追加</button>
+    </div>
+    <div id="tx-content" class="px-4 py-4"></div>
+  </div>
+
+  <!-- 口座管理 -->
+  <div id="pg-acc" class="hidden">
+    <div class="sticky top-0 z-10 bg-[#080c14]/90 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5">
+      <h1 class="text-lg font-black text-white">🏦 口座管理</h1>
+    </div>
+    <div id="acc-content" class="px-4 py-4 space-y-3"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div id="pg-cfg" class="hidden">
+    <div class="sticky top-0 z-10 bg-[#080c14]/90 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5">
+      <h1 class="text-lg font-black text-white">⚙️ 設定</h1>
+    </div>
+    <div id="cfg-content" class="px-4 py-4 space-y-3"></div>
+  </div>
+
+  <!-- 記録データベース -->
+  <div id="pg-rec" class="hidden">
+    <div class="sticky top-0 z-10 bg-[#080c14]/90 backdrop-blur px-4 pt-4 pb-3 border-b border-white/5">
+      <h1 class="text-lg font-black text-white">📊 月別記録</h1>
+    </div>
+    <div id="rec-content" class="px-4 py-4 space-y-3"></div>
+  </div>
+
+  <!-- ボトムナビ -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-[#080c14]/95 backdrop-blur border-t border-white/5 flex items-center px-2 pb-2 pt-1 z-20">
+    <button class="nav-btn nav-a" data-tab="dashboard" onclick="setTab('dashboard')"><span class="text-xl">🏠</span>ホーム</button>
+    <button class="nav-btn nav-i" data-tab="tx" onclick="setTab('tx')"><span class="text-xl">📋</span>取引</button>
+    <button class="nav-btn nav-i" data-tab="acc" onclick="setTab('acc')"><span class="text-xl">🏦</span>口座</button>
+    <button class="nav-btn nav-i" data-tab="rec" onclick="setTab('rec')"><span class="text-xl">📊</span>記録</button>
+    <button class="nav-btn nav-i" data-tab="cfg" onclick="setTab('cfg')"><span class="text-xl">⚙️</span>設定</button>
+  </nav>
+</div>
+
+<!-- ===== モーダル群 ===== -->
+
+<!-- 取引追加 -->
+<div id="m-tx" class="modal-bg hidden">
+  <div class="modal-box space-y-3">
+    <div class="text-base font-bold text-white">取引を追加</div>
+    <div><label class="lbl">日付</label><input id="tx-date" type="date" class="inp"/></div>
+    <div>
+      <label class="lbl">種別</label>
+      <select id="tx-type" class="inp" onchange="onTxTypeChange('tx')">
+        <option value="credit_card">クレカ返済</option>
+        <option value="withdrawal">出金</option>
+        <option value="income">収入</option>
+        <option value="savings">貯金</option>
+        <option value="transfer">振替</option>
+        <option value="investment">投資</option>
+      </select>
+    </div>
+    <div id="tx-card-wrap" class="hidden">
+      <label class="lbl">カード名</label>
+      <input id="tx-cardname" type="text" class="inp" placeholder="例: 楽天カード"/>
+    </div>
+    <!-- F4: 振替サブタイプUI -->
+    <div id="tx-transfer-wrap" class="hidden space-y-2">
+      <label class="lbl">振替先</label>
+      <div class="flex gap-2">
+        <button type="button" id="tx-tr-self-btn" onclick="setTransferTarget('tx','self')" class="flex-1 btn-p text-xs py-2">🔄 自分の口座へ</button>
+        <button type="button" id="tx-tr-ext-btn" onclick="setTransferTarget('tx','external')" class="flex-1 btn-s text-xs py-2">➡ 他者の口座へ</button>
+      </div>
+      <div id="tx-tr-to-wrap" class="hidden">
+        <label class="lbl">振替先口座</label>
+        <select id="tx-bank-to" class="inp"></select>
+      </div>
+    </div>
+    <div id="tx-bank-wrap">
+      <label class="lbl">対象銀行口座</label>
+      <select id="tx-bank" class="inp"></select>
+    </div>
+    <div><label class="lbl">金額（円）</label><input id="tx-amount" type="number" class="inp" placeholder="0"/></div>
+    <div><label class="lbl">メモ（任意）</label><input id="tx-memo" type="text" class="inp" placeholder="メモ"/></div>
+    <!-- 立替フラグ -->
+    <div id="tx-lending-wrap" class="chk-wrap">
+      <input type="checkbox" id="tx-lending"/>
+      <label for="tx-lending" class="text-sm text-slate-300 cursor-pointer">立替（自分以外の支払い）</label>
+    </div>
+    <!-- F5: 計算除外フラグ -->
+    <div class="chk-wrap">
+      <input type="checkbox" id="tx-exclude"/>
+      <label for="tx-exclude" class="text-sm text-slate-400 cursor-pointer">余力計算に含めない</label>
+    </div>
+    <div class="flex gap-3 pt-1">
+      <button onclick="closeM('m-tx')" class="btn-s flex-1">キャンセル</button>
+      <button onclick="addTx()" class="btn-p flex-1">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 取引編集 -->
+<div id="m-edit-tx" class="modal-bg hidden">
+  <div class="modal-box space-y-3">
+    <div class="text-base font-bold text-white">取引を編集</div>
+    <input id="etx-id" type="hidden"/>
+    <div><label class="lbl">日付</label><input id="etx-date" type="date" class="inp"/></div>
+    <div>
+      <label class="lbl">種別</label>
+      <select id="etx-type" class="inp" onchange="onTxTypeChange('etx')">
+        <option value="credit_card">クレカ返済</option>
+        <option value="withdrawal">出金</option>
+        <option value="income">収入</option>
+        <option value="savings">貯金</option>
+        <option value="transfer">振替</option>
+        <option value="investment">投資</option>
+      </select>
+    </div>
+    <div id="etx-card-wrap">
+      <label class="lbl">カード名</label>
+      <input id="etx-cardname" type="text" class="inp"/>
+    </div>
+    <!-- F4: 振替サブタイプUI -->
+    <div id="etx-transfer-wrap" class="hidden space-y-2">
+      <label class="lbl">振替先</label>
+      <div class="flex gap-2">
+        <button type="button" id="etx-tr-self-btn" onclick="setTransferTarget('etx','self')" class="flex-1 btn-p text-xs py-2">🔄 自分の口座へ</button>
+        <button type="button" id="etx-tr-ext-btn" onclick="setTransferTarget('etx','external')" class="flex-1 btn-s text-xs py-2">➡ 他者の口座へ</button>
+      </div>
+      <div id="etx-tr-to-wrap" class="hidden">
+        <label class="lbl">振替先口座</label>
+        <select id="etx-bank-to" class="inp"></select>
+      </div>
+    </div>
+    <div id="etx-bank-wrap">
+      <label class="lbl">対象銀行口座</label>
+      <select id="etx-bank" class="inp"></select>
+    </div>
+    <div><label class="lbl">金額（円）</label><input id="etx-amount" type="number" class="inp"/></div>
+    <div><label class="lbl">メモ</label><input id="etx-memo" type="text" class="inp"/></div>
+    <div>
+      <label class="lbl">ステータス</label>
+      <select id="etx-status" class="inp">
+        <option value="pending">未完了</option>
+        <option value="completed">完了済</option>
+      </select>
+    </div>
+    <div id="etx-lending-wrap" class="chk-wrap">
+      <input type="checkbox" id="etx-lending"/>
+      <label for="etx-lending" class="text-sm text-slate-300 cursor-pointer">立替（自分以外の支払い）</label>
+    </div>
+    <!-- F5: 計算除外フラグ -->
+    <div class="chk-wrap">
+      <input type="checkbox" id="etx-exclude"/>
+      <label for="etx-exclude" class="text-sm text-slate-400 cursor-pointer">余力計算に含めない</label>
+    </div>
+    <div class="flex gap-3 pt-1">
+      <button onclick="closeM('m-edit-tx')" class="btn-s flex-1">キャンセル</button>
+      <button onclick="saveEditTx()" class="btn-p flex-1">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 銀行追加 -->
+<div id="m-bank" class="modal-bg hidden">
+  <div class="modal-box space-y-3">
+    <div class="text-base font-bold text-white">銀行口座を追加</div>
+    <div><label class="lbl">口座名</label><input id="b-name" type="text" class="inp" placeholder="例: 三菱UFJ"/></div>
+    <div><label class="lbl">現在残高（円）</label><input id="b-bal" type="number" class="inp" placeholder="0"/></div>
+    <div class="flex gap-3 pt-1">
+      <button onclick="closeM('m-bank')" class="btn-s flex-1">キャンセル</button>
+      <button onclick="addBank()" class="btn-p flex-1">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 銀行編集 -->
+<div id="m-edit-bank" class="modal-bg hidden">
+  <div class="modal-box space-y-3">
+    <div class="text-base font-bold text-white">口座を編集</div>
+    <input id="eb-id" type="hidden"/>
+    <div><label class="lbl">口座名</label><input id="eb-name" type="text" class="inp"/></div>
+    <div><label class="lbl">残高（円）</label><input id="eb-bal" type="number" class="inp"/></div>
+    <div class="flex gap-3 pt-1">
+      <button onclick="closeM('m-edit-bank')" class="btn-s flex-1">キャンセル</button>
+      <button onclick="saveEditBank()" class="btn-p flex-1">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 固定費プリセット追加 -->
+<div id="m-preset" class="modal-bg hidden">
+  <div class="modal-box space-y-3">
+    <div class="text-base font-bold text-white">固定費プリセットを追加</div>
+    <div><label class="lbl">項目名</label><input id="pr-name" type="text" class="inp" placeholder="例: 電気代"/></div>
+    <div><label class="lbl">概算金額（円）</label><input id="pr-amount" type="number" class="inp" placeholder="0"/></div>
+    <div>
+      <label class="lbl">種別</label>
+      <select id="pr-type" class="inp">
+        <option value="withdrawal">出金</option>
+        <option value="credit_card">クレカ返済</option>
+      </select>
+    </div>
+    <div><label class="lbl">引き落とし口座</label><select id="pr-bank" class="inp"></select></div>
+    <div class="flex gap-3 pt-1">
+      <button onclick="closeM('m-preset')" class="btn-s flex-1">キャンセル</button>
+      <button onclick="addPreset()" class="btn-p flex-1">追加</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import{initializeFirestore,persistentLocalCache,collection,doc,addDoc,updateDoc,deleteDoc,setDoc,getDoc,query,orderBy,limit,onSnapshot,writeBatch}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// =============================================
+// 🔧 Firebase設定をここに入力してください
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyA4qpbwxpp8tEEWLCkNMPIYuDTN7G9cF3A",
+  authDomain: "cash-manege.firebaseapp.com",
+  projectId: "cash-manege",
+  storageBucket: "cash-manege.firebasestorage.app",
+  messagingSenderId: "529145553530",
+  appId: "1:529145553530:web:d65452017ffb9c109b51c3"
+};
+// =============================================
+
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=initializeFirestore(app,{localCache:persistentLocalCache()});
+// =========================================================
+// ユーティリティ
+// =========================================================
+const jstNow=()=>new Date(Date.now()+9*3600000);
+const jstToday=()=>jstNow().toISOString().slice(0,10);
+const fmt=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n||0);
+const uPath=uid=>`users/${uid}`;
+const cRef=(uid,c)=>collection(db,uPath(uid),c);
+const dRef=(uid,c,id)=>doc(db,uPath(uid),c,id);
+const pad=n=>String(n).padStart(2,'0');
+const dateStr=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+
+// =========================================================
+// 定数
+// =========================================================
+const MUFG_MIN_RESERVE = 20000; // 三菱UFJ最低余力資金
+// F2: 三井住友口座判定（貯金専用口座 → 余力計算から除外）
+function isSmbcBank(b){return b.name&&(b.name.includes('三井住友')||b.name.toUpperCase().includes('SMBC'));}
+// F2: SMBC口座の欠嵐合計から除外した全口座欢奴
+function totalBalExcludeSmbc(){return S.banks.reduce((s,b)=>isSmbcBank(b)?s:s+(+b.currentBalance||0),0);}
+function totalSmbcBal(){return S.banks.filter(b=>isSmbcBank(b)).reduce((s,b)=>s+(+b.currentBalance||0),0);}
+
+// =========================================================
+// 祝日キャッシュ
+// =========================================================
+let holidayCache={};// { "YYYY-MM-DD": true }
+
+async function fetchHolidays(year){
+  if(holidayCache[`_loaded_${year}`])return;
+  try{
+    const res=await fetch(`https://api.excelapi.org/datetime/holiday?year=${year}`);
+    if(!res.ok)throw new Error();
+    const data=await res.json();// ["YYYY-MM-DD", ...]
+    if(Array.isArray(data))data.forEach(d=>{holidayCache[d]=true;});
+    holidayCache[`_loaded_${year}`]=true;
+  }catch{
+    // APIが失敗してもアプリは動作継続（祝日考慮なしにフォールバック）
+    holidayCache[`_loaded_${year}`]=true;
+  }
+}
+
+function isHoliday(dateStr){return !!holidayCache[dateStr];}
+function isWeekend(dateStr){const d=new Date(dateStr+'T00:00:00+09:00');const w=d.getDay();return w===0||w===6;}
+function isNonWorkday(dateStr){return isWeekend(dateStr)||isHoliday(dateStr);}
+
+// 指定日が休日なら「直前の平日」を返す
+function prevWorkday(dateStr){
+  let d=new Date(dateStr+'T00:00:00+09:00');
+  d.setDate(d.getDate()-1);
+  for(let i=0;i<7;i++){
+    const s=d.toISOString().slice(0,10);
+    if(!isNonWorkday(s))return s;
+    d.setDate(d.getDate()-1);
+  }
+  return dateStr;
+}
+
+// 毎月9日（固定）と15日（祝休前倒し）の収入日を計算
+async function calcIncomeSchedule(yearMonth){
+  // yearMonth: "YYYY-MM"
+  const[y,m]=yearMonth.split('-').map(Number);
+  await fetchHolidays(y);
+  const day9=dateStr(y,m,9);
+  let day15=dateStr(y,m,15);
+  if(isNonWorkday(day15))day15=prevWorkday(day15);
+  return{day9,day15};
+}
+
+// =========================================================
+// ステート
+// =========================================================
+let uid=null;
+let S={banks:[],transactions:[],settings:{savingsGoal:0,nisaGoal:0,savingsBalance:0,nisaBalance:0,income9:0,income15:0},presets:[]};
+let activeTab='dashboard';
+let txTab='pending';
+let unsubs=[];
+// 今月・来月の収入スケジュール
+let incomeSchedule={};
+
+// =========================================================
+// データ読み込み
+// =========================================================
+async function loadAll(u){
+  unsubs.forEach(f=>f());unsubs=[];
+  const listen=(col,key,sort)=>{
+    const q=sort?query(cRef(u,col),orderBy(sort)):cRef(u,col);
+    unsubs.push(onSnapshot(q,snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();}));
+  };
+  listen('banks','banks','name');
+  listen('presetFixedCosts','presets','name');
+  const tq=query(cRef(u,'transactions'),orderBy('date','desc'),limit(50));
+  unsubs.push(onSnapshot(tq,snap=>{S.transactions=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();}));
+  const sd=await getDoc(doc(db,uPath(u),'settings','main'));
+  if(sd.exists())S.settings={...S.settings,...sd.data()};
+
+  // 祝日を今月・来月分プリロード
+  const now=jstNow();
+  const y=now.getFullYear();const m=now.getMonth()+1;
+  await fetchHolidays(y);
+  if(m===12) await fetchHolidays(y+1);
+  else await fetchHolidays(y);// 来月が翌年になる場合は両方取得済み
+  const nextMForHoliday=m===12?1:m+1;const nextYForHoliday=m===12?y+1:y;
+  if(nextMForHoliday<=12&&nextYForHoliday>=y) await fetchHolidays(nextYForHoliday);
+  // 今月・来月の収入スケジュール
+  const thisMonth=`${y}-${pad(m)}`;
+  const nextM=m===12?1:m+1;const nextY=m===12?y+1:y;
+  const nextMonth=`${nextY}-${pad(nextM)}`;
+  const[sched1,sched2]=await Promise.all([calcIncomeSchedule(thisMonth),calcIncomeSchedule(nextMonth)]);
+  incomeSchedule={[thisMonth]:sched1,[nextMonth]:sched2};
+  renderAll();
+}
+
+// =========================================================
+// 計算ロジック
+// =========================================================
+
+// 「次回のクレカ引き落とし日」= pendingのcredit_cardで最も近い未来の日付
+function nextPaymentDate(){
+  const today=jstToday();
+  const upcoming=[...new Set(S.transactions
+    .filter(t=>t.status==='pending'&&t.type==='credit_card'&&t.date>=today)
+    .map(t=>t.date))].sort();
+  return upcoming.length?upcoming[0]:null;
+}
+// 「次々回のクレカ引き落とし日」= 2番目に近い日付
+function secondNextPaymentDate(){
+  const today=jstToday();
+  const upcoming=[...new Set(S.transactions
+    .filter(t=>t.status==='pending'&&t.type==='credit_card'&&t.date>=today)
+    .map(t=>t.date))].sort();
+  return upcoming.length>=2?upcoming[1]:null;
+}
+
+// 指定期間内の予定収入（自動スケジュール）
+function scheduledIncomeUntil(targetDate){
+  const today=jstToday();
+  let total=0;
+  const inc9=+S.settings.income9||0;
+  const inc15=+S.settings.income15||0;
+  Object.values(incomeSchedule).forEach(sched=>{
+    if(sched.day9>=today&&sched.day9<=targetDate)total+=inc9;
+    if(sched.day15>=today&&sched.day15<=targetDate)total+=inc15;
+  });
+  return total;
+}
+
+// 指定の引き落とし日までの余力を汎用計算（計算式詳細付き）
+function calcFreeUntil(npd){
+  const today=jstToday();
+  // F2: SMBC口座を除いた残高のみ使用
+  const totalBal=totalBalExcludeSmbc();
+  const goal=(+S.settings.savingsGoal||0)+(+S.settings.nisaGoal||0);
+  const mufgBank=S.banks.find(b=>b.name&&b.name.includes('三菱'));
+  const mufgReserve=mufgBank?MUFG_MIN_RESERVE:0;
+  // F5: 計算除外フラグ / F2: SMBC口座紐づき取引を除外するフィルタ
+  const isCalcTx=t=>!t.excludeFromCalc&&!isSmbcBank(S.banks.find(b=>b.id===t.bankId)||{name:''});
+
+  if(!npd){
+    const pendingOut=S.transactions
+      .filter(t=>t.status==='pending'&&t.date>=today&&t.type!=='income'&&t.type!=='savings'&&isCalcTx(t))
+      .reduce((s,t)=>s+(+t.amount||0),0);
+    const free=totalBal-pendingOut-goal-mufgReserve;
+    return{free,npd:null,incomeUntil:0,mufgReserve,formula:{totalBal,pendingOut,goal,mufgReserve,incomeUntil:0,label:'残高 − 未決済支出 − 目標'+(mufgReserve?` − UFJ最低資金¥${mufgReserve.toLocaleString()}`:'') }};
+  }
+
+  const manualIncome=S.transactions
+    .filter(t=>t.status==='pending'&&t.type==='income'&&t.date>=today&&t.date<=npd&&!t.excludeFromCalc)
+    .reduce((s,t)=>s+(+t.amount||0),0);
+  const autoIncome=scheduledIncomeUntil(npd);
+  const totalIncome=manualIncome+autoIncome;
+  const totalOut=S.transactions
+    .filter(t=>t.status==='pending'&&t.date>=today&&t.date<=npd&&t.type!=='income'&&t.type!=='savings'&&isCalcTx(t))
+    .reduce((s,t)=>s+(+t.amount||0),0);
+  const free=totalBal+totalIncome-totalOut-goal-mufgReserve;
+  return{free,npd,incomeUntil:totalIncome,mufgReserve,formula:{totalBal,pendingOut:totalOut,goal,mufgReserve,incomeUntil:totalIncome,label:'残高 + 収入 − 支出 − 目標'+(mufgReserve?` − UFJ最低資金¥${mufgReserve.toLocaleString()}`:'') }};
+}
+
+// 次回引き落とし日までの「真の余力」
+function calcNextPaymentFree(){
+  return calcFreeUntil(nextPaymentDate());
+}
+// 次々回引き落とし日までの「真の余力」
+function calcSecondNextPaymentFree(){
+  return calcFreeUntil(secondNextPaymentDate());
+}
+
+// =========================================================
+// 追加ロジック: 月末貯金達成判定・来月収入スケジュール
+// =========================================================
+
+// 月末判定: 今日が月末7日以内かどうか
+function isNearMonthEnd(){
+  const now=jstNow();
+  const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  return now.getDate()>=lastDay-6;
+}
+// 月初判定: 今日が1〜5日かどうか
+function isMonthStart(){
+  return jstNow().getDate()<=5;
+}
+
+// 貯金達成率チェック: 月末に余力があれば貯金目標を達成とみなす
+function savingsAchievementInfo(){
+  const{free}=calcNextPaymentFree();
+  const savGoal=+S.settings.savingsGoal||0;
+  const savBal=+S.settings.savingsBalance||0;
+  const isEnd=isNearMonthEnd();
+  const isStart=isMonthStart();
+  // 月末近くで余力が貯金目標以上 → 達成
+  const canAchieve=isEnd&&free>=savGoal&&savGoal>0;
+  // 余力から貯金を差し引いた後の真の余力（月末処理済み想定）
+  const trueFreeSaving=canAchieve?free-savGoal:free;
+  return{canAchieve,trueFreeSaving,savGoal,isEnd,isStart};
+}
+
+// 来月の収入スケジュール
+function getNextMonthSched(){
+  const now=jstNow();
+  const m=now.getMonth()+1;
+  const y=now.getFullYear();
+  const nextM=m===12?1:m+1;
+  const nextY=m===12?y+1:y;
+  const nextMonth=`${nextY}-${pad(nextM)}`;
+  return incomeSchedule[nextMonth]||null;
+}
+
+// 銀行別: 紐づくpending支出合計
+function bankPendingOut(bankId){
+  const today=jstToday();
+  return S.transactions
+    .filter(t=>t.status==='pending'&&t.bankId===bankId&&t.date>=today&&t.type!=='income'&&t.type!=='savings'&&!t.excludeFromCalc)
+    .reduce((s,t)=>s+(+t.amount||0),0);
+}
+
+// 立替内訳（回収済みは実質dot負担から差し引き）
+function lendingBreakdown(){
+  const pending=S.transactions.filter(t=>t.status==='pending'&&t.type!=='income'&&t.type!=='savings');
+  let real=0,lending=0;
+  pending.forEach(t=>{const a=+t.amount||0;if(t.isLending)lending+=a;else real+=a;});
+  // F3: 回収済み立替の合計（実質負担金額から差し引く）
+  const collectedLending=S.transactions
+    .filter(t=>t.status==='collected'&&t.isLending)
+    .reduce((s,t)=>s+(+t.amount||0),0);
+  // 実質負担 = real（立替なし分）- 回収済み立替
+  const realNet=Math.max(0, real - collectedLending);
+  return{real:realNet,realGross:real,lending,collectedLending,burden:real+lending};
+}
+
+// =========================================================
+// 描画
+// =========================================================
+const TL={credit_card:'クレカ',withdrawal:'出金',income:'収入',transfer:'振替',investment:'投資',savings:'貯金'};
+const TC={credit_card:'tb-cc',withdrawal:'tb-wd',income:'tb-in',transfer:'tb-tr',investment:'tb-iv',savings:'tb-ld'};
+const TRANSFER_LABELS={self:'自口座辻',external:'他者口座'};
+
+function bankName(id){return(S.banks.find(b=>b.id===id)||{name:''}).name;}
+
+function txRow(t,showActions=true){
+  const today=jstToday();
+  // 当日・過去の未完了取引を完了可能（立替除く）
+  const canComplete=t.status==='pending'&&t.date<=today&&!t.isLending;
+  const canCollect=t.status==='pending'&&t.isLending;
+  const isIncome=t.type==='income';
+  const isSavings=t.type==='savings';
+  const amtColor=isIncome||isSavings?'text-emerald-400':'text-red-400';
+  const sign=isIncome||isSavings?'+':'-';
+  const cardBadge=t.type==='credit_card'&&t.cardName
+    ?`<span class="text-xs text-purple-300 font-semibold ml-1">[${t.cardName}]</span>`:'';
+  const bankBadge=t.bankId
+    ?`<span class="text-slate-500 text-xs ml-1">🏦${bankName(t.bankId)}</span>`:'';
+  const lendBadge=t.isLending
+    ?`<span class="lending-tag ml-1">立替</span>`:'';
+  const excludeBadge=t.excludeFromCalc
+    ?`<span class="text-xs text-slate-600 border border-slate-700 rounded px-1 ml-1">計算除外</span>`:'';
+  // F4: 振替サブラベル
+  const trLabel=t.type==='transfer'&&t.transferTarget
+    ?(t.transferTarget==='self'?'🔄自口座':'➡他者'):'';
+  const trBadge=trLabel?`<span class="text-xs text-blue-400 ml-1">${trLabel}</span>`:'';
+  return`<div class="list-row flex-col items-start gap-1">
+    <div class="flex w-full justify-between items-center">
+      <div class="flex flex-wrap items-center gap-1">
+        <span class="tb ${TC[t.type]||(TC.withdrawal)}">${TL[t.type]||t.type}</span>
+        ${cardBadge}${lendBadge}${trBadge}${excludeBadge}
+        <span class="text-slate-500 text-xs">${t.date}</span>
+        ${bankBadge}
+      </div>
+      <span class="${amtColor} font-bold text-sm">${sign}${fmt(t.amount)}</span>
+    </div>
+    ${t.memo?`<div class="text-slate-600 text-xs pl-1">${t.memo}</div>`:''}
+    ${showActions?`<div class="flex gap-2 mt-1 w-full justify-end">
+    ${canComplete?`<button onclick="completeTx('${t.id}')" class="bsm bsm-g">✓ 完了</button>`:''}
+${canCollect?`<button onclick="collectLending('${t.id}')" class="bsm bsm-teal">💰 回収完了</button>`:''}
+      <button onclick="openEditTx('${t.id}')" class="bsm bsm-y">編集</button>
+      <button onclick="deleteTx('${t.id}')" class="bsm bsm-r">削除</button>
+    </div>`:''}
+  </div>`;
+}
+
+function renderDash(){
+  const today=jstToday();
+  const{free,npd,incomeUntil,mufgReserve,formula}=calcNextPaymentFree();
+  const{free:free2,npd:npd2,incomeUntil:incomeUntil2}=calcSecondNextPaymentFree();
+  const isNeg=free<0;
+  const isNeg2=free2<0;
+  const totalBal=S.banks.reduce((s,b)=>s+(+b.currentBalance||0),0);
+  const goal=(+S.settings.savingsGoal||0)+(+S.settings.nisaGoal||0);
+  const{real,lending,collectedLending,burden}=lendingBreakdown();
+  const pendingTxs=S.transactions.filter(t=>t.status==='pending');
+  const{canAchieve,trueFreeSaving,savGoal,isEnd,isStart}=savingsAchievementInfo();
+
+  // 今月の収入スケジュール表示
+  const ym=today.slice(0,7);
+  const sched=incomeSchedule[ym];
+  const nextSched=getNextMonthSched();
+  const schedHtml=sched?`
+    <div class="income-sched mt-3">
+      <div class="text-xs font-bold text-emerald-400 mb-1">📅 今月の予定収入日</div>
+      <div class="flex gap-4 text-xs text-slate-400">
+        <span>9日分: <span class="text-emerald-300 font-semibold">${sched.day9}</span> ${fmt(S.settings.income9)}</span>
+        <span>15日分: <span class="text-emerald-300 font-semibold">${sched.day15}</span>${sched.day15!==ym+'-15'?' <span class="text-amber-400">（前倒し）</span>':''} ${fmt(S.settings.income15)}</span>
+      </div>
+      ${nextSched?`<div class="mt-2 pt-2 border-t border-emerald-900/30">
+        <div class="text-xs font-bold text-blue-400 mb-1">📅 来月の予定収入日</div>
+        <div class="flex gap-4 text-xs text-slate-400">
+          <span>9日分: <span class="text-blue-300 font-semibold">${nextSched.day9}</span> ${fmt(S.settings.income9)}</span>
+          <span>15日分: <span class="text-blue-300 font-semibold">${nextSched.day15}</span>${nextSched.day15.slice(8)!=='15'?' <span class="text-amber-400">（前倒し）</span>':''} ${fmt(S.settings.income15)}</span>
+        </div>
+      </div>`:''}
+    </div>`:'';
+
+  // 計算式HTML
+  const formulaHtml=`
+    <details class="mt-2">
+      <summary class="text-xs text-slate-600 cursor-pointer hover:text-slate-400">▶ 計算式を表示</summary>
+      <div class="formula-box mt-1">
+        <div>全口座残高: <span class="fval">${fmt(formula.totalBal)}</span></div>
+        ${formula.incomeUntil>0?`<div><span class="fop">＋</span> 期間内収入: <span class="fval">${fmt(formula.incomeUntil)}</span></div>`:''}
+        <div><span class="fop">−</span> 未決済支出: <span class="fval">${fmt(formula.pendingOut)}</span></div>
+        <div><span class="fop">−</span> 貯金/NISA目標: <span class="fval">${fmt(formula.goal)}</span></div>
+        ${formula.mufgReserve>0?`<div><span class="fop">−</span> 三菱UFJ最低資金: <span class="fval">${fmt(formula.mufgReserve)}</span></div>`:''}
+        <div class="border-t border-white/10 mt-1 pt-1">＝ 余力: <span class="ftotal">${fmt(free)}</span></div>
+        ${canAchieve?`<div class="fwarn mt-1">⬇ 月末：貯金目標 ${fmt(savGoal)} を差し引き → 真の余力: ${fmt(trueFreeSaving)}</div>`:''}
+        ${isStart&&S.settings.savingsDeducted?`<div class="fwarn">✅ 先月の貯金差し引き適用済み</div>`:''}
+      </div>
+    </details>`;
+
+  // 貯金・NISA ステータス
+  const savBal=+S.settings.savingsBalance||0;
+  const savGoalVal=+S.settings.savingsGoal||0;
+  const nisaBal=+S.settings.nisaBalance||0;
+  const nisaGoal=+S.settings.nisaGoal||0;
+  const savPct=savGoalVal>0?Math.min(savBal/savGoalVal*100,100):savBal>0?100:0;
+  const nisaPct=nisaGoal>0?Math.min(nisaBal/nisaGoal*100,100):nisaBal>0?100:0;
+  const savColor=savPct>=100?'#34d399':savPct>=60?'#60a5fa':'#fbbf24';
+  const nisaColor=nisaPct>=100?'#34d399':nisaPct>=60?'#a78bfa':'#fbbf24';
+
+  // 銀行別バーグラフ
+  const bankBars=S.banks.map(b=>{
+    const isSmbc=isSmbcBank(b);
+    const bal=+b.currentBalance||0;
+    const pend=isSmbc?0:bankPendingOut(b.id);
+    const pct=bal>0?Math.min(pend/bal*100,100):pend>0?100:0;
+    const over=!isSmbc&&pend>bal;
+    const barColor=over?'#f87171':pct>75?'#fbbf24':'#34d399';
+    const isMufg=b.name&&b.name.includes('三菱');
+    const minRes=isMufg?MUFG_MIN_RESERVE:0;
+    // SMBC用: 未決済の入金・貯金・振替取引一覧
+    const smbcRows=isSmbc?[
+      ...S.transactions.filter(t=>t.status==='pending'&&t.bankId===b.id&&(t.type==='income'||t.type==='savings'||t.type==='transfer'||t.type==='withdrawal'))
+        .map(t=>`<div class="flex justify-between text-xs text-slate-400 py-0.5 border-b border-white/5">
+          <span>${t.date} <span class="tb ${TC[t.type]||''}">${TL[t.type]||t.type}</span>${t.memo?` ${t.memo}`:''}</span>
+          <span class="${t.type==='income'||t.type==='savings'?'text-emerald-400':'text-red-400'}">${t.type==='income'||t.type==='savings'?'+':'-'}${fmt(t.amount)}</span>
+        </div>`),
+      ...S.transactions.filter(t=>t.status==='pending'&&t.bankIdTo===b.id&&t.type==='transfer')
+        .map(t=>`<div class="flex justify-between text-xs text-slate-400 py-0.5 border-b border-white/5">
+          <span>${t.date} <span class="tb bg-blue-900/60 text-blue-300">振替受取</span>${t.memo?` ${t.memo}`:''}</span>
+          <span class="text-emerald-400">+${fmt(t.amount)}</span>
+        </div>`)
+    ].join(''):'';
+    return`<div class="p-3 border-b border-white/5 last:border-0">
+      <div class="flex justify-between items-center">
+        <span class="text-slate-200 text-sm font-semibold">${b.name}${isMufg?'<span class="text-xs text-amber-400 ml-1">(最低¥20,000確保)</span>':''}${isSmbc?'<span class="text-xs text-teal-400 ml-1">🏦貯金口座</span>':''}</span>
+        <span class="text-white text-sm font-bold">${fmt(bal)}</span>
+      </div>
+      ${isSmbc?`<div class="text-xs text-teal-600 mt-0.5 mb-1">余力計算から除外（引き出し・振替は対応済み）</div>
+        ${smbcRows||'<div class="text-xs text-slate-700 mt-1">未決済取引なし</div>'}`:`
+      <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="flex justify-between mt-1">
+        <span class="text-xs text-slate-500">予定支出: <span class="text-red-400">${fmt(pend)}</span></span>
+        <span class="text-xs ${over?'text-red-400 font-bold':'text-emerald-400'}">余力: ${fmt(bal-pend-minRes)}</span>
+      </div>
+      ${over?`<div class="text-xs text-red-400 mt-1 font-bold">⚠ 残高不足のリスクがあります</div>`:''}
+      ${isMufg&&bal-pend<minRes?`<div class="text-xs text-amber-400 mt-1 font-bold">⚠ UFJ最低資金 ${fmt(minRes)} を下回っています</div>`:''}`}
+    </div>`;
+  }).join('');
+
+  document.getElementById('dash-content').innerHTML=`
+    <!-- 次回余力カード -->
+    <div class="card border ${isNeg?'border-red-800/50':'border-emerald-900/40'}">
+      <div class="p-4">
+        <div class="text-xs text-slate-500 tracking-widest uppercase mb-1">
+          ${npd?`次回引き落とし（${npd}）までの余力`:'今月の自由枠（真の余力）'}
+        </div>
+        <div class="text-4xl font-black ${isNeg?'text-red-400':'text-emerald-300'} tracking-tight">${fmt(free)}</div>
+        ${isNeg?`<div class="text-red-400 text-xs mt-1 font-bold">⚠ 資金ショートのリスクがあります！支出を見直してください</div>`:''}
+        ${mufgReserve>0?`<div class="text-amber-400 text-xs mt-1">🏦 三菱UFJ最低資金 ${fmt(mufgReserve)} を確保済み</div>`:''}
+        ${canAchieve?`<div class="text-emerald-400 text-xs mt-1 font-semibold">🎉 月末貯金達成見込み！余力から ${fmt(savGoal)} を差し引き → 真の余力: ${fmt(trueFreeSaving)}</div>`:''}
+        ${isEnd&&!canAchieve&&savGoalVal>0?`<div class="text-amber-400 text-xs mt-1">⚠ 月末ですが貯金目標 ${fmt(savGoalVal)} の達成が困難です</div>`:''}
+        ${formulaHtml}
+        ${schedHtml}
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <div class="bg-white/5 rounded-xl p-2 text-center">
+            <div class="text-slate-500 text-xs">全口座残高</div>
+            <div class="text-white text-sm font-bold">${fmt(S.banks.reduce((s,b)=>s+(+b.currentBalance||0),0))}</div>
+          </div>
+          <div class="bg-white/5 rounded-xl p-2 text-center">
+            <div class="text-slate-500 text-xs">貯金/NISA目標</div>
+            <div class="text-amber-300 text-sm font-bold">${fmt(goal)}</div>
+          </div>
+          <div class="bg-white/5 rounded-xl p-2 text-center">
+            <div class="text-slate-500 text-xs">未決済件数</div>
+            <div class="text-blue-300 text-sm font-bold">${pendingTxs.length}件</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 次々回余力カード -->
+    ${npd2?`<div class="card border ${isNeg2?'border-red-800/50':'border-blue-900/40'}">
+      <div class="p-3">
+        <div class="text-xs text-slate-500 tracking-widest uppercase mb-1">次々回引き落とし（${npd2}）までの余力</div>
+        <div class="text-2xl font-black ${isNeg2?'text-red-400':'text-blue-300'} tracking-tight">${fmt(free2)}</div>
+        ${isNeg2?`<div class="text-red-400 text-xs mt-1 font-bold">⚠ 資金ショートのリスクがあります</div>`:''}
+        <div class="text-slate-600 text-xs mt-1">残高 + 引き落とし日までの予定収入（${fmt(incomeUntil2)}）− 支出 − 目標</div>
+      </div>
+    </div>`:''}
+
+    <!-- 貯金・証券口座ステータス F1: 残高を大きく表示 -->
+    ${(savGoalVal>0||nisaGoal>0||savBal>0||nisaBal>0)?`
+    <div class="card">
+      <div class="card-hd">💰 貯金・証券口座ステータス</div>
+      <div class="p-3 space-y-4">
+        ${(savGoalVal>0||savBal>0)?`<div class="bg-white/5 rounded-xl p-3">
+          <div class="text-xs text-slate-500 mb-1">🏦 貯金（三井住友）</div>
+          <div class="text-2xl font-black text-emerald-300 tracking-tight">${fmt(savBal)}</div>
+          ${savGoalVal>0?`<div class="text-xs text-slate-500 mt-1">目標: ${fmt(savGoalVal)}</div>`:''}
+          <div class="bar-wrap mt-2"><div class="bar-fill" style="width:${savPct}%;background:${savColor}"></div></div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs" style="color:${savColor}">達成率 ${savPct.toFixed(0)}%</span>
+            ${savGoalVal>0?`<span class="text-xs text-amber-400">残り ${fmt(Math.max(0,savGoalVal-savBal))}</span>`:''}
+          </div>
+        </div>`:''}
+        ${(nisaGoal>0||nisaBal>0)?`<div class="bg-white/5 rounded-xl p-3">
+          <div class="text-xs text-slate-500 mb-1">📈 NISA / 証券</div>
+          <div class="text-2xl font-black text-purple-300 tracking-tight">${fmt(nisaBal)}</div>
+          ${nisaGoal>0?`<div class="text-xs text-slate-500 mt-1">目標: ${fmt(nisaGoal)}</div>`:''}
+          <div class="bar-wrap mt-2"><div class="bar-fill" style="width:${nisaPct}%;background:${nisaColor}"></div></div>
+          <div class="flex justify-between mt-1">
+            <span class="text-xs" style="color:${nisaColor}">達成率 ${nisaPct.toFixed(0)}%</span>
+            ${nisaGoal>0?`<span class="text-xs text-purple-400">残り ${fmt(Math.max(0,nisaGoal-nisaBal))}</span>`:''}
+          </div>
+        </div>`:''}
+      </div>
+    </div>`:`<div class="card">
+      <div class="card-hd">💰 貯金・証券口座ステータス</div>
+      <div class="empty text-xs">⚙️ 設定から貯金・NISA の目標と残高を入力してください</div>
+    </div>`}
+
+    <!-- 支出内訳（立替分離・2段表示） -->
+    ${(burden)>0?`
+    <div class="card">
+      <div class="card-hd">💸 未決済支出の内訳</div>
+      <div class="p-3">
+        <div class="flex gap-3 mb-2">
+          <div class="flex-1 bg-white/5 rounded-xl p-3 text-center">
+            <div class="text-xs text-slate-500 mb-1">負担金額（立替含む）</div>
+            <div class="burden-main">${fmt(burden)}</div>
+            ${lending>0?`<div class="burden-real">うち立替: ${fmt(lending)}</div>`:''}
+          </div>
+          <div class="flex-1 bg-white/5 rounded-xl p-3 text-center">
+            <div class="text-xs text-slate-500 mb-1">実質負担金額</div>
+            <div class="text-red-300 font-semibold text-base">${fmt(real)}</div>
+            ${collectedLending>0?`<div class="text-teal-400 text-xs mt-1">回収済 −${fmt(collectedLending)}</div>`:''}
+          </div>
+        </div>
+        ${collectedLending>0?`<div class="text-xs text-teal-400 bg-teal-900/20 rounded-lg px-3 py-2 border border-teal-900/40">✅ 立替回収済み ${fmt(collectedLending)} が実質負担から除外されています</div>`:''}
+      </div>
+    </div>`:''}
+
+    <!-- 銀行別支払いカバー率 -->
+    <div class="card">
+      <div class="card-hd">🏦 銀行別 支払い余力</div>
+      ${S.banks.length===0?`<div class="empty">口座が登録されていません</div>`:bankBars}
+    </div>
+
+    <!-- 直近の未決済取引 -->
+    <div class="card">
+      <div class="card-hd">⏳ 直近の未決済取引</div>
+      ${pendingTxs.slice(0,5).length===0?`<div class="empty">未決済取引なし</div>`:
+        pendingTxs.slice(0,5).map(t=>txRow(t,false)).join('')}
+    </div>`;
+}
+
+function renderTx(){
+const pending=S.transactions.filter(t=>t.status==='pending');
+const completed=S.transactions.filter(t=>t.status==='completed');
+const collected=S.transactions.filter(t=>t.status==='collected');
+const list=txTab==='pending'?pending:txTab==='completed'?completed:collected;
+document.getElementById('tx-content').innerHTML=`
+  <div class="flex gap-2 mb-3 flex-wrap">
+    <button onclick="setTxTab('pending')" class="${txTab==='pending'?'tab-a':'tab-i'}">未完了 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${pending.length}</span></button>
+    <button onclick="setTxTab('completed')" class="${txTab==='completed'?'tab-a':'tab-i'}">完了済 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${completed.length}</span></button>
+    <button onclick="setTxTab('collected')" class="${txTab==='collected'?'tab-a':'tab-i'}">回収済 <span class="ml-1 text-xs bg-white/10 rounded-full px-2">${collected.length}</span></button>
+  </div>
+  <div class="card">${list.length===0?`<div class="empty">取引なし</div>`:list.map(t=>txRow(t,true)).join('')}</div>`;
+}
+
+function renderAcc(){
+  document.getElementById('acc-content').innerHTML=`
+    <div class="card">
+      <div class="card-hd">🏦 銀行口座 <button onclick="openM('m-bank')" class="btn-add">＋ 追加</button></div>
+      ${S.banks.length===0?`<div class="empty">未登録</div>`:S.banks.map(b=>`
+        <div class="list-row">
+          <div><div class="text-slate-200 text-sm font-semibold">${b.name}</div><div class="text-slate-500 text-xs">残高: ${fmt(b.currentBalance)}</div></div>
+          <div class="flex gap-2">
+            <button onclick="openEditBank('${b.id}')" class="bsm bsm-y">編集</button>
+            <button onclick="deleteBank('${b.id}')" class="bsm bsm-r">削除</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// =========================================================
+// F7: 月次収入入力 開放ロジック
+// =========================================================
+function nextMonthInputDeadline(yearMonth){
+  // 翌月の「入力締切日」= 14日（土曜の場合は木曜）
+  const[y,m]=yearMonth.split('-').map(Number);
+  let d=new Date(`${y}-${pad(m)}-14T00:00:00+09:00`);
+  const w=d.getDay();
+  if(w===6)d.setDate(12);// 土曜→木曜(12日)
+  return d.toISOString().slice(0,10);
+}
+function isNextMonthInputOpen(){
+  // 「翌月収入入力欄」が開放中かどうか
+  // 当月15日（前倒し含む）を過ぎたら翌月入力を開放
+  const today=jstToday();
+  const now=jstNow();
+  const y=now.getFullYear();const m=now.getMonth()+1;
+  const ym=`${y}-${pad(m)}`;
+  const sched=incomeSchedule[ym];
+  if(!sched)return false;
+  // 開放条件: 当月の15日確定日（day15）以降
+  if(today<sched.day15)return false;
+  // 締切確認: 翌月の14日（または木曜）を過ぎていたら次の翌月入力へ移行済み（今月末でリセット）
+  const nextM=m===12?1:m+1;const nextY=m===12?y+1:y;
+  const nextYm=`${nextY}-${pad(nextM)}`;
+  const deadline=nextMonthInputDeadline(nextYm);
+  if(today>deadline)return false;// 締切過ぎ → 入力欄は次のサイクルへ
+  return true;
+}
+function getNextMonthForInput(){
+  const now=jstNow();
+  const m=now.getMonth()+1;const y=now.getFullYear();
+  const nextM=m===12?1:m+1;const nextY=m===12?y+1:y;
+  return{y:nextY,m:nextM,ym:`${nextY}-${pad(nextM)}`};
+}
+
+function renderCfg(){
+  const nextInputOpen=isNextMonthInputOpen();
+  const{ym:nextYm,y:nextY,m:nextM}=getNextMonthForInput();
+  const deadline=nextMonthInputDeadline(nextYm);
+  const savedNext9=+S.settings.nextIncome9||0;
+  const savedNext15=+S.settings.nextIncome15||0;
+  document.getElementById('cfg-content').innerHTML=`
+    <div class="card">
+      <div class="card-hd">🎯 今月の貯金・NISA目標と残高</div>
+      <div class="p-4 space-y-3">
+        <div class="text-xs text-slate-500 mb-1">※ 目標額は余力計算から差し引かれます</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">🏦 貯金 目標額（円）</label>
+            <input id="goal-sav-inp" type="number" value="${S.settings.savingsGoal||0}" class="inp" placeholder="0"/>
+          </div>
+          <div>
+            <label class="lbl">🏦 貯金 現在残高（円）</label>
+            <input id="bal-sav-inp" type="number" value="${S.settings.savingsBalance||0}" class="inp" placeholder="0"/>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="lbl">📈 NISA 目標額（円）</label>
+            <input id="goal-nisa-inp" type="number" value="${S.settings.nisaGoal||0}" class="inp" placeholder="0"/>
+          </div>
+          <div>
+            <label class="lbl">📈 NISA 現在残高（円）</label>
+            <input id="bal-nisa-inp" type="number" value="${S.settings.nisaBalance||0}" class="inp" placeholder="0"/>
+          </div>
+        </div>
+        <button onclick="saveGoal()" class="btn-p w-full">保存</button>
+      </div>
+    </div>
+    <!-- 翌月収入入力欄（常時表示・15日以降のみ入力可） -->
+    ${nextInputOpen?`<div class="card border border-blue-900/40">
+      <div class="card-hd">📅 翌月（${nextY}年${nextM}月）の収入を先行入力</div>
+      <div class="p-4 space-y-3">
+        <div class="text-xs text-blue-400 mb-2">📌 入力有効期間: 〜${deadline}（この日を過ぎると自動リセット）</div>
+        <div><label class="lbl">翌月9日の収入（円）</label>
+          <input id="next-inc9-inp" type="number" value="${savedNext9}" class="inp" placeholder="0"/></div>
+        <div><label class="lbl">翌月15日の収入（円）</label>
+          <input id="next-inc15-inp" type="number" value="${savedNext15}" class="inp" placeholder="0"/></div>
+        <button onclick="saveNextMonthIncome()" class="btn-p w-full">翌月収入を保存</button>
+      </div>
+    </div>`:`<div class="card border border-slate-800">
+      <div class="card-hd">📅 翌月収入の先行入力</div>
+      <div class="p-4 text-xs text-slate-600 text-center">📌 当月15日（または前営業日）以降に入力欄が開放されます</div>
+    </div>`}
+    <div class="card">
+      <div class="card-hd">📋 固定費プリセット <button onclick="openPresetM()" class="btn-add">＋ 追加</button></div>
+      ${S.presets.length===0?`<div class="empty">プリセット未登録</div>`:S.presets.map(p=>`
+        <div class="list-row">
+          <div>
+            <div class="text-slate-200 text-sm">${p.name}</div>
+            <div class="text-slate-500 text-xs">${TL[p.type]||p.type} / ${bankName(p.bankId)||'口座未設定'}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-white text-sm font-bold">${fmt(p.amount)}</span>
+            <button onclick="deletePreset('${p.id}')" class="bsm bsm-r">削除</button>
+          </div>
+        </div>`).join('')}
+      ${S.presets.length>0?`<div class="p-3"><button onclick="applyPresets()" class="btn-p w-full">📥 今月の未決済として一括追加</button></div>`:''}
+    </div>
+    <div class="card">
+      <div class="card-hd">💾 データエクスポート</div>
+      <div class="p-4"><button onclick="exportData()" class="btn-s w-full">JSONでダウンロード</button></div>
+    </div>
+    <div class="card">
+      <div class="p-4"><button onclick="doSignOut()" class="btn-d w-full">ログアウト</button></div>
+    </div>`;
+}
+
+function renderAll(){
+  if(activeTab==='dashboard')renderDash();
+  if(activeTab==='tx')renderTx();
+  if(activeTab==='acc')renderAcc();
+  if(activeTab==='cfg')renderCfg();
+  if(activeTab==='rec')renderRec();
+}
+
+// =========================================================
+// 月別記録データベース描画
+// =========================================================
+function renderRec(){
+  // 全取引から月ごとの負担金額・実質負担金額・貯金を集計
+  const monthMap={};
+  S.transactions.forEach(t=>{
+    if(t.type==='income')return;// 収入は除外
+    const ym=t.date?t.date.slice(0,7):'unknown';
+    if(!monthMap[ym])monthMap[ym]={burden:0,real:0,lending:0,savings:0,collectedLending:0};
+    const a=+t.amount||0;
+    if(t.type==='savings'){
+      monthMap[ym].savings+=a;// F6: 貯金は別集計
+      return;
+    }
+    monthMap[ym].burden+=a;
+    if(t.isLending){monthMap[ym].lending+=a;}
+    else{monthMap[ym].real+=a;}
+    if(t.status==='collected'&&t.isLending){monthMap[ym].collectedLending+=a;}
+  });
+  // F3: 実質負担 = real - 回収済み立替
+  Object.values(monthMap).forEach(d=>{d.real=Math.max(0,d.real-d.collectedLending);});
+  const months=Object.keys(monthMap).filter(k=>k!=='unknown').sort().reverse();
+  if(months.length===0){
+    document.getElementById('rec-content').innerHTML=`<div class="card"><div class="empty">記録データがありません</div></div>`;return;
+  }
+  // グラフ用最大値
+  const maxVal=Math.max(...months.map(m=>monthMap[m].burden),1);
+  // 棒グラフHTML (最新6ヶ月)
+  const chartMonths=months.slice(0,6).reverse();
+  const barCols=chartMonths.map(ym=>{
+    const d=monthMap[ym];
+    const hA=Math.max(4,Math.round(d.burden/maxVal*100));
+    const hB=Math.max(2,Math.round(d.real/maxVal*100));
+    const label=ym.slice(5)+'月';
+    return`<div class="month-bar-col">
+      <div class="month-bar-pair" style="height:100px;align-items:flex-end;">
+        <div class="month-bar-a" style="height:${hA}px;" title="負担: ${fmt(d.burden)}"></div>
+        <div class="month-bar-b" style="height:${hB}px;" title="実質: ${fmt(d.real)}"></div>
+      </div>
+      <div class="month-bar-lbl">${label}</div>
+    </div>`;
+  }).join('');
+  // テーブル
+  const rows=months.map(ym=>{
+    const d=monthMap[ym];
+    return`<div class="list-row flex-col items-start gap-1">
+      <div class="flex w-full justify-between">
+        <span class="text-slate-300 font-semibold text-sm">${ym}</span>
+        <div class="text-right">
+          <div class="burden-main text-base">${fmt(d.burden)}</div>
+          <div class="burden-real">実質: ${fmt(d.real)}</div>
+        </div>
+      </div>
+      ${d.lending>0?`<div class="text-xs text-teal-400">立替: ${fmt(d.lending)}</div>`:''}
+      ${d.savings>0?`<div class="text-xs text-emerald-400">🏦 貯金: +${fmt(d.savings)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('rec-content').innerHTML=`
+    <div class="card">
+      <div class="card-hd">📊 月別 支出グラフ（直近6ヶ月）
+        <div class="flex items-center gap-3 text-xs font-normal normal-case tracking-normal">
+          <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#f87171;border-radius:2px;display:inline-block"></span>負担金額</span>
+          <span class="flex items-center gap-1"><span style="width:10px;height:10px;background:#2dd4bf;border-radius:2px;display:inline-block"></span>実質負担</span>
+        </div>
+      </div>
+      <div class="p-4">
+        <div class="month-bar-wrap">${barCols}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd">📋 月別 詳細一覧</div>
+      ${rows||`<div class="empty">データなし</div>`}
+    </div>`;
+}
+
+// =========================================================
+// アクション
+// =========================================================
+window.setTab=function(tab){
+  activeTab=tab;
+  ['dashboard','tx','acc','cfg','rec'].forEach(t=>{
+    document.getElementById(`pg-${t}`).classList.toggle('hidden',t!==tab);
+  });
+  document.querySelectorAll('.nav-btn').forEach(b=>{
+    b.classList.toggle('nav-a',b.dataset.tab===tab);
+    b.classList.toggle('nav-i',b.dataset.tab!==tab);
+  });
+  renderAll();
+};
+window.setTxTab=t=>{txTab=t;renderTx();};
+window.openM=id=>document.getElementById(id).classList.remove('hidden');
+window.closeM=id=>document.getElementById(id).classList.add('hidden');
+
+// F4: 振替先サブタイプステート
+let txTransferTarget={'tx':'self','etx':'self'};
+// 種別変更時: クレカ名・立替・振替・貯金フィールドの表示切替
+window.onTxTypeChange=function(pfx){
+  const type=document.getElementById(`${pfx}-type`).value;
+  const cardWrap=document.getElementById(`${pfx}-card-wrap`);
+  const lendWrap=document.getElementById(`${pfx}-lending-wrap`);
+  const trWrap=document.getElementById(`${pfx}-transfer-wrap`);
+  if(cardWrap)cardWrap.classList.toggle('hidden',type!=='credit_card');
+  if(lendWrap)lendWrap.style.display=(type==='income'||type==='savings'||type==='transfer')?'none':'flex';
+  if(trWrap){
+    trWrap.classList.toggle('hidden',type!=='transfer');
+    if(type==='transfer')setTransferTarget(pfx,txTransferTarget[pfx]||'self');
+  }
+};
+// F4: 自口座 / 他者サブタイプ選択
+window.setTransferTarget=function(pfx,target){
+  txTransferTarget[pfx]=target;
+  const selfBtn=document.getElementById(`${pfx}-tr-self-btn`);
+  const extBtn=document.getElementById(`${pfx}-tr-ext-btn`);
+  const toWrap=document.getElementById(`${pfx}-tr-to-wrap`);
+  if(selfBtn){selfBtn.className=`flex-1 ${target==='self'?'btn-p':'btn-s'} text-xs py-2`;}
+  if(extBtn){extBtn.className=`flex-1 ${target==='external'?'btn-p':'btn-s'} text-xs py-2`;}
+  if(toWrap){toWrap.classList.toggle('hidden',target!=='self');}
+  // 自口座振替の場合は振替先口座セレクトを初期化
+  if(target==='self'){
+    const bankToEl=document.getElementById(`${pfx}-bank-to`);
+    if(bankToEl)populateBankSel(`${pfx}-bank-to`);
+  }
+};
+
+function populateBankSel(id){
+  const el=document.getElementById(id);
+  el.innerHTML=`<option value="">（未設定）</option>`+S.banks.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+}
+
+window.openTxModal=function(){
+  populateBankSel('tx-bank');
+  populateBankSel('tx-bank-to');
+  txTransferTarget['tx']='self';
+  onTxTypeChange('tx');
+  document.getElementById('tx-lending').checked=false;
+  document.getElementById('tx-exclude').checked=false;
+  openM('m-tx');
+};
+
+window.addTx=async function(){
+  if(!uid)return;
+  const date=document.getElementById('tx-date').value;
+  const type=document.getElementById('tx-type').value;
+  const amount=document.getElementById('tx-amount').value;
+  const memo=document.getElementById('tx-memo').value;
+  const bankId=document.getElementById('tx-bank').value;
+  const cardName=type==='credit_card'?document.getElementById('tx-cardname').value:'';
+  const isLending=type!=='income'&&type!=='savings'&&type!=='transfer'&&document.getElementById('tx-lending').checked;
+  const excludeFromCalc=document.getElementById('tx-exclude').checked;
+  // F4: 振替サブタイプ
+  const transferTarget=type==='transfer'?txTransferTarget['tx']:'';
+  const bankIdTo=type==='transfer'&&transferTarget==='self'?document.getElementById('tx-bank-to').value:'';
+  if(!date||!amount)return toast('日付と金額を入力してください','err');
+  if(type==='transfer'&&transferTarget==='self'&&bankId===bankIdTo)return toast('振替元と先が同じ口座です','err');
+  await addDoc(cRef(uid,'transactions'),{
+    date,type,amount:+amount,memo,bankId,cardName,isLending,excludeFromCalc,
+    transferTarget,bankIdTo,
+    status:'pending',createdAt:new Date().toISOString()
+  });
+  closeM('m-tx');
+  document.getElementById('tx-amount').value='';
+  document.getElementById('tx-memo').value='';
+  document.getElementById('tx-cardname').value='';
+  document.getElementById('tx-lending').checked=false;
+  document.getElementById('tx-exclude').checked=false;
+  toast('取引を追加しました');
+};
+
+window.openEditTx=function(id){
+  const t=S.transactions.find(x=>x.id===id);if(!t)return;
+  populateBankSel('etx-bank');
+  populateBankSel('etx-bank-to');
+  txTransferTarget['etx']=t.transferTarget||'self';
+  document.getElementById('etx-id').value=id;
+  document.getElementById('etx-date').value=t.date;
+  document.getElementById('etx-type').value=t.type;
+  document.getElementById('etx-amount').value=t.amount;
+  document.getElementById('etx-memo').value=t.memo||'';
+  document.getElementById('etx-status').value=t.status;
+  document.getElementById('etx-bank').value=t.bankId||'';
+  document.getElementById('etx-cardname').value=t.cardName||'';
+  document.getElementById('etx-lending').checked=!!t.isLending;
+  document.getElementById('etx-exclude').checked=!!t.excludeFromCalc;
+  onTxTypeChange('etx');
+  // F4: 振替先口座を復元
+  if(t.type==='transfer'&&t.bankIdTo)document.getElementById('etx-bank-to').value=t.bankIdTo;
+  openM('m-edit-tx');
+};
+window.saveEditTx=async function(){
+  const id=document.getElementById('etx-id').value;
+  const type=document.getElementById('etx-type').value;
+  const transferTarget=type==='transfer'?txTransferTarget['etx']:'';
+  const bankIdTo=type==='transfer'&&transferTarget==='self'?document.getElementById('etx-bank-to').value:'';
+  await updateDoc(dRef(uid,'transactions',id),{
+    date:document.getElementById('etx-date').value,
+    type,amount:+document.getElementById('etx-amount').value,
+    memo:document.getElementById('etx-memo').value,
+    status:document.getElementById('etx-status').value,
+    bankId:document.getElementById('etx-bank').value,
+    cardName:type==='credit_card'?document.getElementById('etx-cardname').value:'',
+    isLending:type!=='income'&&type!=='savings'&&type!=='transfer'&&document.getElementById('etx-lending').checked,
+    excludeFromCalc:document.getElementById('etx-exclude').checked,
+    transferTarget,bankIdTo,
+  });
+  closeM('m-edit-tx');toast('取引を更新しました');
+};
+window.deleteTx=async function(id){
+  if(!confirm('削除しますか？'))return;
+  await deleteDoc(dRef(uid,'transactions',id));toast('削除しました');
+};
+window.completeTx=async function(id){
+  const t=S.transactions.find(x=>x.id===id);if(!t)return;
+  const batch=writeBatch(db);
+  const a=+t.amount||0;
+  if(t.type==='transfer'){
+    // 振替元から減算
+    const srcBank=t.bankId?S.banks.find(b=>b.id===t.bankId):null;
+    if(srcBank)batch.update(dRef(uid,'banks',srcBank.id),{currentBalance:(+srcBank.currentBalance||0)-a});
+    // 自口座振替→振替先に加算
+    if(t.bankIdTo){
+      const dstBank=S.banks.find(b=>b.id===t.bankIdTo);
+      if(dstBank)batch.update(dRef(uid,'banks',dstBank.id),{currentBalance:(+dstBank.currentBalance||0)+a});
+    }
+  }else{
+    const bank=t.bankId?S.banks.find(b=>b.id===t.bankId):S.banks[0];
+    if(bank){
+      const cur=+bank.currentBalance||0;
+      const newBal=(t.type==='income'||t.type==='savings')?cur+a:cur-a;
+      batch.update(dRef(uid,'banks',bank.id),{currentBalance:newBal});
+      // 貯金完了時は設定のsavingsBalanceも同期
+      if(t.type==='savings'){
+        const newSavBal=(+S.settings.savingsBalance||0)+a;
+        batch.update(doc(db,uPath(uid),'settings','main'),{savingsBalance:newSavBal});
+        S.settings.savingsBalance=newSavBal;
+      }
+    }
+  }
+  batch.update(dRef(uid,'transactions',id),{status:'completed'});
+  await batch.commit();toast('取引を完了しました');
+};
+window.collectLending=async function(id){
+  const t=S.transactions.find(x=>x.id===id);if(!t)return;
+  const batch=writeBatch(db);
+  // 立替金は口座残高に影響しないためステータスのみ更新
+  batch.update(dRef(uid,'transactions',id),{status:'collected'});
+  await batch.commit();toast('立替金の回収を完了しました');
+};
+// 銀行
+window.addBank=async function(){
+  const name=document.getElementById('b-name').value.trim();if(!name)return;
+  await addDoc(cRef(uid,'banks'),{name,currentBalance:+document.getElementById('b-bal').value||0});
+  closeM('m-bank');
+  document.getElementById('b-name').value='';document.getElementById('b-bal').value='';
+  toast('口座を追加しました');
+};
+window.openEditBank=function(id){
+  const b=S.banks.find(x=>x.id===id);if(!b)return;
+  document.getElementById('eb-id').value=id;
+  document.getElementById('eb-name').value=b.name;
+  document.getElementById('eb-bal').value=b.currentBalance;
+  openM('m-edit-bank');
+};
+window.saveEditBank=async function(){
+  const id=document.getElementById('eb-id').value;
+  await updateDoc(dRef(uid,'banks',id),{
+    name:document.getElementById('eb-name').value,
+    currentBalance:+document.getElementById('eb-bal').value
+  });
+  closeM('m-edit-bank');toast('口座を更新しました');
+};
+window.deleteBank=async function(id){
+  if(!confirm('削除しますか？'))return;
+  await deleteDoc(dRef(uid,'banks',id));
+};
+
+// 設定
+window.saveGoal=async function(){
+  const savingsGoal=+document.getElementById('goal-sav-inp').value||0;
+  const nisaGoal=+document.getElementById('goal-nisa-inp').value||0;
+  const savingsBalance=+document.getElementById('bal-sav-inp').value||0;
+  const nisaBalance=+document.getElementById('bal-nisa-inp').value||0;
+  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,savingsGoal,nisaGoal,savingsBalance,nisaBalance});
+  S.settings={...S.settings,savingsGoal,nisaGoal,savingsBalance,nisaBalance};
+  toast('目標・残高を保存しました');renderAll();
+};
+window.saveIncomeSettings=async function(){
+  const v9=+document.getElementById('inc9-inp').value||0;
+  const v15=+document.getElementById('inc15-inp').value||0;
+  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,income9:v9,income15:v15});
+  S.settings.income9=v9;S.settings.income15=v15;toast('収入設定を保存しました');renderAll();
+};
+// F7: 翌月収入保存
+window.saveNextMonthIncome=async function(){
+  const v9=+document.getElementById('next-inc9-inp').value||0;
+  const v15=+document.getElementById('next-inc15-inp').value||0;
+  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,nextIncome9:v9,nextIncome15:v15});
+  S.settings.nextIncome9=v9;S.settings.nextIncome15=v15;toast('翌月収入を保存しました');renderAll();
+};
+
+// 固定費プリセット
+window.openPresetM=function(){populateBankSel('pr-bank');openM('m-preset');};
+window.addPreset=async function(){
+  const name=document.getElementById('pr-name').value.trim();
+  const amount=document.getElementById('pr-amount').value;
+  if(!name||!amount)return;
+  await addDoc(cRef(uid,'presetFixedCosts'),{
+    name,amount:+amount,
+    type:document.getElementById('pr-type').value,
+    bankId:document.getElementById('pr-bank').value
+  });
+  closeM('m-preset');
+  document.getElementById('pr-name').value='';document.getElementById('pr-amount').value='';
+  toast('固定費を追加しました');
+};
+window.deletePreset=async function(id){
+  if(!confirm('削除しますか？'))return;
+  await deleteDoc(dRef(uid,'presetFixedCosts',id));
+};
+window.applyPresets=async function(){
+  if(!S.presets.length)return;
+  const today=jstToday();
+  const batch=writeBatch(db);
+  S.presets.forEach(p=>{
+    const r=doc(cRef(uid,'transactions'));
+    batch.set(r,{date:today,type:p.type,amount:+p.amount,memo:`[固定費] ${p.name}`,bankId:p.bankId||'',cardName:'',isLending:false,status:'pending',createdAt:new Date().toISOString()});
+  });
+  await batch.commit();toast(`${S.presets.length}件を一括追加しました`);
+};
+
+// エクスポート
+window.exportData=async function(){
+  const{getDocs,query:q2,orderBy:ob}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const result={};
+  for(const c of['banks','presetFixedCosts']){
+    const snap=await getDocs(cRef(uid,c));
+    result[c]=snap.docs.map(d=>({id:d.id,...d.data()}));
+  }
+  const txSnap=await getDocs(q2(cRef(uid,'transactions'),ob('date','desc')));
+  result.transactions=txSnap.docs.map(d=>({id:d.id,...d.data()}));
+  result.settings=S.settings;
+  const blob=new Blob([JSON.stringify(result,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`moneyflow-${jstToday()}.json`;a.click();
+  toast('エクスポートしました');
+};
+
+window.doSignOut=async function(){unsubs.forEach(f=>f());await signOut(auth);};
+
+// トースト
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className=`fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-semibold shadow-lg transition-opacity duration-300 ${type==='err'?'bg-red-600 text-white':'bg-emerald-600 text-white'}`;
+  el.classList.remove('opacity-0');
+  setTimeout(()=>el.classList.add('opacity-0'),2600);
+}
+
+// 認証
+window.doLogin=async function(){
+  try{await signInWithEmailAndPassword(auth,document.getElementById('a-email').value,document.getElementById('a-pass').value);}
+  catch(e){authErr(e.code);}
+};
+window.doRegister=async function(){
+  try{await createUserWithEmailAndPassword(auth,document.getElementById('a-email').value,document.getElementById('a-pass').value);}
+  catch(e){authErr(e.code);}
+};
+function authErr(code){
+  const m={'auth/invalid-email':'メールアドレスの形式が正しくありません','auth/wrong-password':'パスワードが違います','auth/user-not-found':'ユーザーが見つかりません','auth/email-already-in-use':'このメールアドレスは登録済みです','auth/weak-password':'パスワードは6文字以上にしてください'};
+  document.getElementById('a-err').textContent=m[code]||'エラー: '+code;
+}
+
+onAuthStateChanged(auth,user=>{
+  uid=user?user.uid:null;
+  document.getElementById('auth-screen').classList.toggle('hidden',!!user);
+  document.getElementById('app-screen').classList.toggle('hidden',!user);
+  if(user)loadAll(user.uid);
+  else S={banks:[],transactions:[],settings:{savingsGoal:0,nisaGoal:0,savingsBalance:0,nisaBalance:0,income9:0,income15:0},presets:[]};
+});
+
+document.getElementById('tx-date').value=jstToday();
+
+// =============================================
+// JST リアルタイム時計
+// =============================================
+function updateClock(){
+  const el=document.getElementById('jst-clock');
+  if(!el)return;
+  const now=jstNow();
+  const hh=String(now.getUTCHours()).padStart(2,'0');
+  const mm=String(now.getUTCMinutes()).padStart(2,'0');
+  const ss=String(now.getUTCSeconds()).padStart(2,'0');
+  const yyyy=now.getUTCFullYear();
+  const mo=String(now.getUTCMonth()+1).padStart(2,'0');
+  const dd=String(now.getUTCDate()).padStart(2,'0');
+  el.textContent=`${yyyy}/${mo}/${dd} ${hh}:${mm}:${ss} JST`;
+}
+setInterval(updateClock,1000);
+updateClock();
+
+if('serviceWorker'in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
