@@ -332,87 +332,49 @@ select.inp option{background:#0f1623;}
   </div>
 </div>
 
-<script type="module">
-import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import{initializeFirestore,persistentLocalCache,collection,doc,addDoc,updateDoc,deleteDoc,setDoc,getDoc,query,orderBy,limit,onSnapshot,writeBatch}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-
-// =============================================
-// 🔧 Firebase設定をここに入力してください
-// =============================================
-const firebaseConfig = {
-  apiKey: "AIzaSyA4qpbwxpp8tEEWLCkNMPIYuDTN7G9cF3A",
-  authDomain: "cash-manege.firebaseapp.com",
-  projectId: "cash-manege",
-  storageBucket: "cash-manege.firebasestorage.app",
-  messagingSenderId: "529145553530",
-  appId: "1:529145553530:web:d65452017ffb9c109b51c3"
-};
-// =============================================
-
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=initializeFirestore(app,{localCache:persistentLocalCache()});
+<script>
 // =========================================================
 // ユーティリティ
 // =========================================================
 const jstNow=()=>new Date(Date.now()+9*3600000);
 const jstToday=()=>jstNow().toISOString().slice(0,10);
 const fmt=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n||0);
-const uPath=uid=>`users/${uid}`;
-const cRef=(uid,c)=>collection(db,uPath(uid),c);
-const dRef=(uid,c,id)=>doc(db,uPath(uid),c,id);
 const pad=n=>String(n).padStart(2,'0');
 const dateStr=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+const genId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 // =========================================================
 // 定数
 // =========================================================
-const MUFG_MIN_RESERVE = 20000; // 三菱UFJ最低余力資金
-// F2: 三井住友口座判定（貯金専用口座 → 余力計算から除外）
+const MUFG_MIN_RESERVE = 20000;
 function isSmbcBank(b){return b.name&&(b.name.includes('三井住友')||b.name.toUpperCase().includes('SMBC'));}
-// F2: SMBC口座の欠嵐合計から除外した全口座欢奴
 function totalBalExcludeSmbc(){return S.banks.reduce((s,b)=>isSmbcBank(b)?s:s+(+b.currentBalance||0),0);}
 function totalSmbcBal(){return S.banks.filter(b=>isSmbcBank(b)).reduce((s,b)=>s+(+b.currentBalance||0),0);}
 
 // =========================================================
 // 祝日キャッシュ
 // =========================================================
-let holidayCache={};// { "YYYY-MM-DD": true }
-
+let holidayCache={};
 async function fetchHolidays(year){
   if(holidayCache[`_loaded_${year}`])return;
   try{
     const res=await fetch(`https://api.excelapi.org/datetime/holiday?year=${year}`);
     if(!res.ok)throw new Error();
-    const data=await res.json();// ["YYYY-MM-DD", ...]
+    const data=await res.json();
     if(Array.isArray(data))data.forEach(d=>{holidayCache[d]=true;});
     holidayCache[`_loaded_${year}`]=true;
-  }catch{
-    // APIが失敗してもアプリは動作継続（祝日考慮なしにフォールバック）
-    holidayCache[`_loaded_${year}`]=true;
-  }
+  }catch{holidayCache[`_loaded_${year}`]=true;}
 }
-
-function isHoliday(dateStr){return !!holidayCache[dateStr];}
-function isWeekend(dateStr){const d=new Date(dateStr+'T00:00:00+09:00');const w=d.getDay();return w===0||w===6;}
-function isNonWorkday(dateStr){return isWeekend(dateStr)||isHoliday(dateStr);}
-
-// 指定日が休日なら「直前の平日」を返す
+function isHoliday(s){return !!holidayCache[s];}
+function isWeekend(s){const d=new Date(s+'T00:00:00+09:00');const w=d.getDay();return w===0||w===6;}
+function isNonWorkday(s){return isWeekend(s)||isHoliday(s);}
 function prevWorkday(dateStr){
   let d=new Date(dateStr+'T00:00:00+09:00');
   d.setDate(d.getDate()-1);
-  for(let i=0;i<7;i++){
-    const s=d.toISOString().slice(0,10);
-    if(!isNonWorkday(s))return s;
-    d.setDate(d.getDate()-1);
-  }
+  for(let i=0;i<7;i++){const s=d.toISOString().slice(0,10);if(!isNonWorkday(s))return s;d.setDate(d.getDate()-1);}
   return dateStr;
 }
-
-// 毎月9日（固定）と15日（祝休前倒し）の収入日を計算
 async function calcIncomeSchedule(yearMonth){
-  // yearMonth: "YYYY-MM"
   const[y,m]=yearMonth.split('-').map(Number);
   await fetchHolidays(y);
   const day9=dateStr(y,m,9);
@@ -424,50 +386,62 @@ async function calcIncomeSchedule(yearMonth){
 // =========================================================
 // ステート
 // =========================================================
-let uid=null;
+const LS_KEY='moneyflow_data';
 let S={banks:[],transactions:[],settings:{savingsGoal:0,nisaGoal:0,savingsBalance:0,nisaBalance:0,income9:0,income15:0},presets:[]};
 let activeTab='dashboard';
 let txTab='pending';
-let unsubs=[];
-// 今月・来月の収入スケジュール
 let incomeSchedule={};
+
+// =========================================================
+// localStorage CRUD
+// =========================================================
+function lsSave(){
+  const data={banks:S.banks,transactions:S.transactions,settings:S.settings,presets:S.presets};
+  localStorage.setItem(LS_KEY,JSON.stringify(data));
+  renderAll();
+}
+function lsAddDoc(key,data){
+  const id=genId();
+  const item={id,...data};
+  if(key==='transactions'){
+    S.transactions=[item,...S.transactions].sort((a,b)=>b.date.localeCompare(a.date));
+  }else if(key==='banks'||key==='presets'){
+    S[key]=[...S[key],item].sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  }else{S[key]=[...S[key],item];}
+  lsSave();return id;
+}
+function lsUpdateDoc(key,id,data){
+  const idx=S[key].findIndex(x=>x.id===id);
+  if(idx>=0)S[key][idx]={...S[key][idx],...data};
+  lsSave();
+}
+function lsDeleteDoc(key,id){
+  S[key]=S[key].filter(x=>x.id!==id);
+  lsSave();
+}
+function lsUpdateSettings(data){
+  S.settings={...S.settings,...data};
+  lsSave();
+}
 
 // =========================================================
 // データ読み込み
 // =========================================================
-async function loadAll(u){
-  unsubs.forEach(f=>f());unsubs=[];
-  const listen=(col,key,sort)=>{
-    const q=sort?query(cRef(u,col),orderBy(sort)):cRef(u,col);
-    unsubs.push(onSnapshot(q,snap=>{S[key]=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();}));
-  };
-  listen('banks','banks','name');
-  listen('presetFixedCosts','presets','name');
-  const tq=query(cRef(u,'transactions'),orderBy('date','desc'),limit(50));
-  unsubs.push(onSnapshot(tq,snap=>{S.transactions=snap.docs.map(d=>({id:d.id,...d.data()}));renderAll();}));
-  const sd=await getDoc(doc(db,uPath(u),'settings','main'));
-  if(sd.exists())S.settings={...S.settings,...sd.data()};
-
-  // 祝日を今月・来月分プリロード
-  const now=jstNow();
-  const y=now.getFullYear();const m=now.getMonth()+1;
+async function loadAll(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(raw){const d=JSON.parse(raw);S={...S,...d};}
+  }catch(e){console.warn('localStorage read error',e);}
+  // 祝日プリロード
+  const now=jstNow();const y=now.getFullYear();const m=now.getMonth()+1;
   await fetchHolidays(y);
-  if(m===12) await fetchHolidays(y+1);
-  else await fetchHolidays(y);// 来月が翌年になる場合は両方取得済み
-  const nextMForHoliday=m===12?1:m+1;const nextYForHoliday=m===12?y+1:y;
-  if(nextMForHoliday<=12&&nextYForHoliday>=y) await fetchHolidays(nextYForHoliday);
-  // 今月・来月の収入スケジュール
+  const nextY=m===12?y+1:y;await fetchHolidays(nextY);
   const thisMonth=`${y}-${pad(m)}`;
-  const nextM=m===12?1:m+1;const nextY=m===12?y+1:y;
-  const nextMonth=`${nextY}-${pad(nextM)}`;
+  const nextM=m===12?1:m+1;const nextYM=m===12?y+1:y;const nextMonth=`${nextYM}-${pad(nextM)}`;
   const[sched1,sched2]=await Promise.all([calcIncomeSchedule(thisMonth),calcIncomeSchedule(nextMonth)]);
   incomeSchedule={[thisMonth]:sched1,[nextMonth]:sched2};
   renderAll();
 }
-
-// =========================================================
-// 計算ロジック
-// =========================================================
 
 // 「次回のクレカ引き落とし日」= pendingのcredit_cardで最も近い未来の日付
 function nextPaymentDate(){
@@ -719,6 +693,8 @@ function renderDash(){
     const barColor=over?'#f87171':pct>75?'#fbbf24':'#34d399';
     const isMufg=b.name&&b.name.includes('三菱');
     const minRes=isMufg?MUFG_MIN_RESERVE:0;
+    // SMBC: 完了済み貯金取引の累計
+    const smbcSavingsTotal=isSmbc?S.transactions.filter(t=>t.bankId===b.id&&t.type==='savings'&&t.status==='completed').reduce((s,t)=>s+(+t.amount||0),0):0;
     // SMBC用: 未決済の入金・貯金・振替取引一覧
     const smbcRows=isSmbc?[
       ...S.transactions.filter(t=>t.status==='pending'&&t.bankId===b.id&&(t.type==='income'||t.type==='savings'||t.type==='transfer'||t.type==='withdrawal'))
@@ -737,7 +713,7 @@ function renderDash(){
         <span class="text-slate-200 text-sm font-semibold">${b.name}${isMufg?'<span class="text-xs text-amber-400 ml-1">(最低¥20,000確保)</span>':''}${isSmbc?'<span class="text-xs text-teal-400 ml-1">🏦貯金口座</span>':''}</span>
         <span class="text-white text-sm font-bold">${fmt(bal)}</span>
       </div>
-      ${isSmbc?`<div class="text-xs text-teal-600 mt-0.5 mb-1">余力計算から除外（引き出し・振替は対応済み）</div>
+      ${isSmbc?`<div class="text-xs text-teal-600 mt-0.5 mb-1">余力計算から除外 ${smbcSavingsTotal>0?`<span class="text-teal-400 ml-1">うち貯金: ${fmt(smbcSavingsTotal)}</span>`:''}</div>
         ${smbcRows||'<div class="text-xs text-slate-700 mt-1">未決済取引なし</div>'}`:`
       <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
       <div class="flex justify-between mt-1">
@@ -990,7 +966,7 @@ function renderCfg(){
       <div class="p-4"><button onclick="exportData()" class="btn-s w-full">JSONでダウンロード</button></div>
     </div>
     <div class="card">
-      <div class="p-4"><button onclick="doSignOut()" class="btn-d w-full">ログアウト</button></div>
+      <div class="p-4"><button onclick="clearData()" class="btn-d w-full">🗑 全データをリセット</button></div>
     </div>`;
 }
 
@@ -1143,8 +1119,7 @@ window.openTxModal=function(){
   openM('m-tx');
 };
 
-window.addTx=async function(){
-  if(!uid)return;
+window.addTx=function(){
   const date=document.getElementById('tx-date').value;
   const type=document.getElementById('tx-type').value;
   const amount=document.getElementById('tx-amount').value;
@@ -1153,12 +1128,11 @@ window.addTx=async function(){
   const cardName=type==='credit_card'?document.getElementById('tx-cardname').value:'';
   const isLending=type!=='income'&&type!=='savings'&&type!=='transfer'&&document.getElementById('tx-lending').checked;
   const excludeFromCalc=document.getElementById('tx-exclude').checked;
-  // F4: 振替サブタイプ
   const transferTarget=type==='transfer'?txTransferTarget['tx']:'';
   const bankIdTo=type==='transfer'&&transferTarget==='self'?document.getElementById('tx-bank-to').value:'';
   if(!date||!amount)return toast('日付と金額を入力してください','err');
   if(type==='transfer'&&transferTarget==='self'&&bankId===bankIdTo)return toast('振替元と先が同じ口座です','err');
-  await addDoc(cRef(uid,'transactions'),{
+  lsAddDoc('transactions',{
     date,type,amount:+amount,memo,bankId,cardName,isLending,excludeFromCalc,
     transferTarget,bankIdTo,
     status:'pending',createdAt:new Date().toISOString()
@@ -1192,12 +1166,12 @@ window.openEditTx=function(id){
   if(t.type==='transfer'&&t.bankIdTo)document.getElementById('etx-bank-to').value=t.bankIdTo;
   openM('m-edit-tx');
 };
-window.saveEditTx=async function(){
+window.saveEditTx=function(){
   const id=document.getElementById('etx-id').value;
   const type=document.getElementById('etx-type').value;
   const transferTarget=type==='transfer'?txTransferTarget['etx']:'';
   const bankIdTo=type==='transfer'&&transferTarget==='self'?document.getElementById('etx-bank-to').value:'';
-  await updateDoc(dRef(uid,'transactions',id),{
+  lsUpdateDoc('transactions',id,{
     date:document.getElementById('etx-date').value,
     type,amount:+document.getElementById('etx-amount').value,
     memo:document.getElementById('etx-memo').value,
@@ -1210,51 +1184,38 @@ window.saveEditTx=async function(){
   });
   closeM('m-edit-tx');toast('取引を更新しました');
 };
-window.deleteTx=async function(id){
+window.deleteTx=function(id){
   if(!confirm('削除しますか？'))return;
-  await deleteDoc(dRef(uid,'transactions',id));toast('削除しました');
+  lsDeleteDoc('transactions',id);toast('削除しました');
 };
-window.completeTx=async function(id){
+window.completeTx=function(id){
   const t=S.transactions.find(x=>x.id===id);if(!t)return;
-  const batch=writeBatch(db);
   const a=+t.amount||0;
   if(t.type==='transfer'){
     // 振替元から減算
-    const srcBank=t.bankId?S.banks.find(b=>b.id===t.bankId):null;
-    if(srcBank)batch.update(dRef(uid,'banks',srcBank.id),{currentBalance:(+srcBank.currentBalance||0)-a});
-    // 自口座振替→振替先に加算
-    if(t.bankIdTo){
-      const dstBank=S.banks.find(b=>b.id===t.bankIdTo);
-      if(dstBank)batch.update(dRef(uid,'banks',dstBank.id),{currentBalance:(+dstBank.currentBalance||0)+a});
-    }
+    if(t.bankId){const si=S.banks.findIndex(b=>b.id===t.bankId);if(si>=0)S.banks[si].currentBalance=(+S.banks[si].currentBalance||0)-a;}
+    // 振替先に加算
+    if(t.bankIdTo){const di=S.banks.findIndex(b=>b.id===t.bankIdTo);if(di>=0)S.banks[di].currentBalance=(+S.banks[di].currentBalance||0)+a;}
   }else{
-    const bank=t.bankId?S.banks.find(b=>b.id===t.bankId):S.banks[0];
-    if(bank){
-      const cur=+bank.currentBalance||0;
-      const newBal=(t.type==='income'||t.type==='savings')?cur+a:cur-a;
-      batch.update(dRef(uid,'banks',bank.id),{currentBalance:newBal});
-      // 貯金完了時は設定のsavingsBalanceも同期
-      if(t.type==='savings'){
-        const newSavBal=(+S.settings.savingsBalance||0)+a;
-        batch.update(doc(db,uPath(uid),'settings','main'),{savingsBalance:newSavBal});
-        S.settings.savingsBalance=newSavBal;
-      }
+    const bi=t.bankId?S.banks.findIndex(b=>b.id===t.bankId):(S.banks.length?0:-1);
+    if(bi>=0){
+      const newBal=(t.type==='income'||t.type==='savings')?(+S.banks[bi].currentBalance||0)+a:(+S.banks[bi].currentBalance||0)-a;
+      S.banks[bi].currentBalance=newBal;
+      if(t.type==='savings')S.settings.savingsBalance=(+S.settings.savingsBalance||0)+a;
     }
   }
-  batch.update(dRef(uid,'transactions',id),{status:'completed'});
-  await batch.commit();toast('取引を完了しました');
+  // ステータス更新してまとめて保存
+  const ti=S.transactions.findIndex(x=>x.id===id);if(ti>=0)S.transactions[ti].status='completed';
+  lsSave();toast('取引を完了しました');
 };
-window.collectLending=async function(id){
-  const t=S.transactions.find(x=>x.id===id);if(!t)return;
-  const batch=writeBatch(db);
-  // 立替金は口座残高に影響しないためステータスのみ更新
-  batch.update(dRef(uid,'transactions',id),{status:'collected'});
-  await batch.commit();toast('立替金の回収を完了しました');
+window.collectLending=function(id){
+  lsUpdateDoc('transactions',id,{status:'collected'});
+  toast('立替金の回収を完了しました');
 };
 // 銀行
-window.addBank=async function(){
+window.addBank=function(){
   const name=document.getElementById('b-name').value.trim();if(!name)return;
-  await addDoc(cRef(uid,'banks'),{name,currentBalance:+document.getElementById('b-bal').value||0});
+  lsAddDoc('banks',{name,currentBalance:+document.getElementById('b-bal').value||0});
   closeM('m-bank');
   document.getElementById('b-name').value='';document.getElementById('b-bal').value='';
   toast('口座を追加しました');
@@ -1266,50 +1227,43 @@ window.openEditBank=function(id){
   document.getElementById('eb-bal').value=b.currentBalance;
   openM('m-edit-bank');
 };
-window.saveEditBank=async function(){
+window.saveEditBank=function(){
   const id=document.getElementById('eb-id').value;
-  await updateDoc(dRef(uid,'banks',id),{
+  lsUpdateDoc('banks',id,{
     name:document.getElementById('eb-name').value,
     currentBalance:+document.getElementById('eb-bal').value
   });
   closeM('m-edit-bank');toast('口座を更新しました');
 };
-window.deleteBank=async function(id){
+window.deleteBank=function(id){
   if(!confirm('削除しますか？'))return;
-  await deleteDoc(dRef(uid,'banks',id));
+  lsDeleteDoc('banks',id);
 };
 
 // 設定
-window.saveGoal=async function(){
+window.saveGoal=function(){
   const savingsGoal=+document.getElementById('goal-sav-inp').value||0;
   const nisaGoal=+document.getElementById('goal-nisa-inp').value||0;
   const savingsBalance=+document.getElementById('bal-sav-inp').value||0;
   const nisaBalance=+document.getElementById('bal-nisa-inp').value||0;
-  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,savingsGoal,nisaGoal,savingsBalance,nisaBalance});
-  S.settings={...S.settings,savingsGoal,nisaGoal,savingsBalance,nisaBalance};
-  toast('目標・残高を保存しました');renderAll();
-};
-window.saveIncomeSettings=async function(){
-  const v9=+document.getElementById('inc9-inp').value||0;
-  const v15=+document.getElementById('inc15-inp').value||0;
-  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,income9:v9,income15:v15});
-  S.settings.income9=v9;S.settings.income15=v15;toast('収入設定を保存しました');renderAll();
+  lsUpdateSettings({savingsGoal,nisaGoal,savingsBalance,nisaBalance});
+  toast('目標・残高を保存しました');
 };
 // F7: 翌月収入保存
-window.saveNextMonthIncome=async function(){
+window.saveNextMonthIncome=function(){
   const v9=+document.getElementById('next-inc9-inp').value||0;
   const v15=+document.getElementById('next-inc15-inp').value||0;
-  await setDoc(doc(db,uPath(uid),'settings','main'),{...S.settings,nextIncome9:v9,nextIncome15:v15});
-  S.settings.nextIncome9=v9;S.settings.nextIncome15=v15;toast('翌月収入を保存しました');renderAll();
+  lsUpdateSettings({nextIncome9:v9,nextIncome15:v15});
+  toast('翌月収入を保存しました');
 };
 
 // 固定費プリセット
 window.openPresetM=function(){populateBankSel('pr-bank');openM('m-preset');};
-window.addPreset=async function(){
+window.addPreset=function(){
   const name=document.getElementById('pr-name').value.trim();
   const amount=document.getElementById('pr-amount').value;
   if(!name||!amount)return;
-  await addDoc(cRef(uid,'presetFixedCosts'),{
+  lsAddDoc('presets',{
     name,amount:+amount,
     type:document.getElementById('pr-type').value,
     bankId:document.getElementById('pr-bank').value
@@ -1318,32 +1272,22 @@ window.addPreset=async function(){
   document.getElementById('pr-name').value='';document.getElementById('pr-amount').value='';
   toast('固定費を追加しました');
 };
-window.deletePreset=async function(id){
+window.deletePreset=function(id){
   if(!confirm('削除しますか？'))return;
-  await deleteDoc(dRef(uid,'presetFixedCosts',id));
+  lsDeleteDoc('presets',id);
 };
-window.applyPresets=async function(){
+window.applyPresets=function(){
   if(!S.presets.length)return;
   const today=jstToday();
-  const batch=writeBatch(db);
   S.presets.forEach(p=>{
-    const r=doc(cRef(uid,'transactions'));
-    batch.set(r,{date:today,type:p.type,amount:+p.amount,memo:`[固定費] ${p.name}`,bankId:p.bankId||'',cardName:'',isLending:false,status:'pending',createdAt:new Date().toISOString()});
+    lsAddDoc('transactions',{date:today,type:p.type,amount:+p.amount,memo:`[固定費] ${p.name}`,bankId:p.bankId||'',cardName:'',isLending:false,status:'pending',createdAt:new Date().toISOString()});
   });
-  await batch.commit();toast(`${S.presets.length}件を一括追加しました`);
+  toast(`${S.presets.length}件を一括追加しました`);
 };
 
 // エクスポート
-window.exportData=async function(){
-  const{getDocs,query:q2,orderBy:ob}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
-  const result={};
-  for(const c of['banks','presetFixedCosts']){
-    const snap=await getDocs(cRef(uid,c));
-    result[c]=snap.docs.map(d=>({id:d.id,...d.data()}));
-  }
-  const txSnap=await getDocs(q2(cRef(uid,'transactions'),ob('date','desc')));
-  result.transactions=txSnap.docs.map(d=>({id:d.id,...d.data()}));
-  result.settings=S.settings;
+window.exportData=function(){
+  const result={banks:S.banks,transactions:S.transactions,settings:S.settings,presets:S.presets};
   const blob=new Blob([JSON.stringify(result,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=`moneyflow-${jstToday()}.json`;a.click();
@@ -1362,26 +1306,18 @@ function toast(msg,type='ok'){
 }
 
 // 認証
-window.doLogin=async function(){
-  try{await signInWithEmailAndPassword(auth,document.getElementById('a-email').value,document.getElementById('a-pass').value);}
-  catch(e){authErr(e.code);}
+// データリセット
+window.clearData=function(){
+  if(!confirm('すべてのデータを削除しますか？この操作は元に戻せません。'))return;
+  localStorage.removeItem(LS_KEY);
+  S={banks:[],transactions:[],settings:{savingsGoal:0,nisaGoal:0,savingsBalance:0,nisaBalance:0,income9:0,income15:0},presets:[]};
+  renderAll();toast('データをリセットしました');
 };
-window.doRegister=async function(){
-  try{await createUserWithEmailAndPassword(auth,document.getElementById('a-email').value,document.getElementById('a-pass').value);}
-  catch(e){authErr(e.code);}
-};
-function authErr(code){
-  const m={'auth/invalid-email':'メールアドレスの形式が正しくありません','auth/wrong-password':'パスワードが違います','auth/user-not-found':'ユーザーが見つかりません','auth/email-already-in-use':'このメールアドレスは登録済みです','auth/weak-password':'パスワードは6文字以上にしてください'};
-  document.getElementById('a-err').textContent=m[code]||'エラー: '+code;
-}
 
-onAuthStateChanged(auth,user=>{
-  uid=user?user.uid:null;
-  document.getElementById('auth-screen').classList.toggle('hidden',!!user);
-  document.getElementById('app-screen').classList.toggle('hidden',!user);
-  if(user)loadAll(user.uid);
-  else S={banks:[],transactions:[],settings:{savingsGoal:0,nisaGoal:0,savingsBalance:0,nisaBalance:0,income9:0,income15:0},presets:[]};
-});
+// アプリ起動（認証不要・直接表示）
+document.getElementById('auth-screen').classList.add('hidden');
+document.getElementById('app-screen').classList.remove('hidden');
+loadAll();
 
 document.getElementById('tx-date').value=jstToday();
 
