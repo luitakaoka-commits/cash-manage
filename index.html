@@ -372,9 +372,22 @@ function renderHome(){
   const def=getDefenseBank(),ent=getEntBank(),sav=getSavingsBank();
   const free=calcFree(),dl=Number(S.settings.defenseLine||150000);
   const nc=nextCreditDate(),is=incomeSchedule(),today=jstToday();
-  const pendingTxs=S.txs.filter(t=>t.status==='pending').slice(0,5);
-  // calcSummaryにpending取引のみを渡す（ホームの視点: 未決済の損益）
-  const{burdenTotal:allBurden,lendingTotal:lendTotal,realBurden:burdenTotal}=calcSummary(S.txs.filter(t=>t.status==='pending'));
+  // ===== タイムライン分割: 次の15日をカットオフに当座・次サイクルを分離 =====
+  const next15=(()=>{
+    const d=jstNow(),yr=d.getFullYear(),mo=d.getMonth()+1,day=d.getDate();
+    if(day<15) return `${yr}-${String(mo).padStart(2,'0')}-15`;
+    const nyr=mo===12?yr+1:yr,nmo=mo===12?1:mo+1;
+    return `${nyr}-${String(nmo).padStart(2,'0')}-15`;
+  })();
+  const allPending=S.txs.filter(t=>t.status==='pending');
+  // ① 当座: 本日〜次の14日まで (date < next15)
+  const nowTxs=allPending.filter(t=>t.date&&t.date>=today&&t.date<next15);
+  // ② 次サイクル: 次の15日以降 (date >= next15)
+  const nextCycleTxs=allPending.filter(t=>t.date&&t.date>=next15);
+  const nowSum=calcSummary(nowTxs);
+  const nextCycleSum=calcSummary(nextCycleTxs);
+  // 全体サマリー（旧変数互換）
+  const{burdenTotal:allBurden,lendingTotal:lendTotal,realBurden:burdenTotal}=calcSummary(allPending);
   let html='';
   if(def){
     const bal=Number(def.currentBalance||0),pend=pendingExp(def.id);
@@ -397,12 +410,85 @@ function renderHome(){
     html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge ${badge}">${icon} ${label}</span><span style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">${esc(bk.name)}</span></div><div style="font-size:24px;font-weight:900;margin:6px 0">${fmt(bal)}</div>${role!=='savings'?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px"><span>未決済 ${fmt(pend)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div><div style="font-size:12px;margin-top:6px">余力 <span class="${sc}" style="font-weight:700">${fmt(surplus)}</span></div>`:'<div style="font-size:12px;color:var(--muted);margin-top:4px">🔒 開かずの金庫</div>'}</div>`;
   });
   html+=`<div class="gc" style="margin-top:12px"><div class="sec" style="margin-top:0">収入スケジュール</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px"><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px"><div style="color:var(--muted);font-size:11px">今月9日分</div><div style="font-weight:700">${is.d9}</div><div class="apos">${fmt(is.inc9)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px"><div style="color:var(--muted);font-size:11px">今月15日分</div><div style="font-weight:700">${is.d15}</div><div class="apos">${fmt(is.inc15)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px;opacity:.7"><div style="color:var(--muted);font-size:11px">翌月9日分</div><div style="font-weight:700">${is.d9n}</div><div class="apos">${fmt(is.ninc9)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px;opacity:.7"><div style="color:var(--muted);font-size:11px">翌月15日分</div><div style="font-weight:700">${is.d15n}</div><div class="apos">${fmt(is.ninc15)}</div></div></div>${nc?`<div style="margin-top:10px;font-size:13px">💳 次回クレカ引落日: <b style="color:var(--gold)">${nc}</b></div>`:''}</div>`;
-  html+=`<div class="gc"><div class="sec" style="margin-top:0">未決済サマリー</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><div style="font-size:11px;color:var(--muted)">負担金額（立替含む）</div><div style="font-size:18px;font-weight:800;color:var(--red)">${fmt(allBurden)}</div></div><div><div style="font-size:11px;color:var(--muted)">実質負担金額（立替除く）</div><div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt(burdenTotal)}</div></div></div>${lendTotal>0?`<div style="margin-top:8px;font-size:13px;color:var(--purple)">🤝 立替中: ${fmt(lendTotal)}</div>`:''}</div>`;
-  if(pendingTxs.length>0){
-    html+=`<div class="gc"><div class="sec" style="margin-top:0">直近の未決済取引</div>`;
-    pendingTxs.forEach(t=>{const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',la=Number(t.lendingAmount||0);html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${la>0?`<span class="badge bp">内立替: ${fmt(la)}</span>`:''}<span style="font-size:11px;color:var(--muted)">${t.date}</span></div><div style="font-size:13px;color:var(--muted)">${esc(t.memo||'（メモなし）')}${b?' / '+esc(b.name):''}</div></div><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:15px;flex-shrink:0">${isInc?'+':'−'}${fmt(t.amount)}</div></div>`;});
+  // ===== 分割サマリー =====
+  html+=`
+  <div class="gc">
+    <div class="sec" style="margin-top:0">未決済サマリー</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:.05em;margin-bottom:4px">⚡ 当座（${next15}未満）</div>
+        <div style="font-size:15px;font-weight:800;color:var(--red)">${fmt(nowSum.burdenTotal)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">実質 <span style="color:var(--gold);font-weight:700">${fmt(nowSum.realBurden)}</span></div>
+        ${nowSum.lendingTotal>0?`<div style="font-size:11px;color:var(--purple);margin-top:2px">🤝 立替 ${fmt(nowSum.lendingTotal)}</div>`:''}
+      </div>
+      <div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.2);border-radius:12px;padding:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.05em;margin-bottom:4px">📅 次サイクル（${next15}〜）</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text)">${fmt(nextCycleSum.burdenTotal)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">実質 <span style="color:var(--gold);font-weight:700">${fmt(nextCycleSum.realBurden)}</span></div>
+        ${nextCycleSum.lendingTotal>0?`<div style="font-size:11px;color:var(--purple);margin-top:2px">🤝 立替 ${fmt(nextCycleSum.lendingTotal)}</div>`:''}
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding-top:8px;border-top:1px solid var(--gb)">
+      <span>全体負担 ${fmt(allBurden)}</span><span>全体実質 <b style="color:var(--gold)">${fmt(burdenTotal)}</b></span>
+    </div>
+  </div>`;
+
+  // ===== 当座の未決済取引リスト =====
+  if(nowTxs.length>0){
+    html+=`<div class="gc"><div class="sec" style="margin-top:0">⚡ 当座の未決済取引</div>`;
+    nowTxs.slice(0,6).forEach(t=>{const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',la=Number(t.lendingAmount||0);html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${la>0?`<span class="badge bp">内立替: ${fmt(la)}</span>`:''}<span style="font-size:11px;color:var(--muted)">${t.date}</span></div><div style="font-size:13px;color:var(--muted)">${esc(t.memo||'（メモなし）')}${b?' / '+esc(b.name):''}</div></div><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:15px;flex-shrink:0">${isInc?'+':'−'}${fmt(t.amount)}</div></div>`;});
     html+='</div>';
   }
+
+  // ===== 次サイクルの未決済取引リスト =====
+  if(nextCycleTxs.length>0){
+    html+=`<div class="gc"><div class="sec" style="margin-top:0">📅 次サイクルの未決済取引</div>`;
+    nextCycleTxs.slice(0,6).forEach(t=>{const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',la=Number(t.lendingAmount||0);html+=`<div class="tx-row" style="opacity:.85"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${la>0?`<span class="badge bp">内立替: ${fmt(la)}</span>`:''}<span style="font-size:11px;color:var(--muted)">${t.date}</span></div><div style="font-size:13px;color:var(--muted)">${esc(t.memo||'（メモなし）')}${b?' / '+esc(b.name):''}</div></div><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:15px;flex-shrink:0">${isInc?'+':'−'}${fmt(t.amount)}</div></div>`;});
+    html+='</div>';
+  }
+
+  // ===== 次サイクルシミュレーター（現在の余力計算から完全分離）=====
+  (()=>{
+    const predIncome=(S.settings.nextIncome9||0)+(S.settings.nextIncome15||0);
+    const predDebt=nextCycleSum.burdenTotal; // CF視点: 実際に口座から出る金額
+    const nisa=Number(S.settings.nisaGoal||0);
+    const predEnt=predIncome-predDebt-nisa;
+    let mode,modeLabel,modeColor;
+    if(predIncome>=50000){mode='A';modeLabel='Aモード（標準）';modeColor='var(--green)';}
+    else if(predIncome>=30001){mode='B';modeLabel='Bモード（圧縮）';modeColor='var(--gold)';}
+    else{mode='C';modeLabel='Cモード（防御）';modeColor='var(--red)';}
+    html+=`
+    <div class="gc" style="border:1px solid rgba(167,139,250,0.3);background:rgba(167,139,250,0.05)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:18px">🔮</span>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:var(--purple)">次サイクルシミュレーター</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px">現在の余力計算には一切影響しません</div>
+        </div>
+        <span style="margin-left:auto;padding:3px 12px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid ${modeColor};color:${modeColor}">${modeLabel}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="text-align:center;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">予測収入</div>
+          <div style="font-size:14px;font-weight:800;color:var(--green)">${fmt(predIncome)}</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">次サイクル負債</div>
+          <div style="font-size:14px;font-weight:800;color:var(--red)">${fmt(predDebt)}</div>
+        </div>
+        <div style="text-align:center;background:rgba(255,255,255,0.04);border-radius:10px;padding:8px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">NISA服</div>
+          <div style="font-size:14px;font-weight:800;color:var(--blue)">${fmt(nisa)}</div>
+        </div>
+      </div>
+      <div style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.3);border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;color:var(--purple);font-weight:700">🎮 予測娯楽費</div>
+        <div style="font-size:20px;font-weight:900;color:${predEnt>=0?'var(--purple)':'var(--red)'}">${fmt(predEnt)}</div>
+      </div>
+      ${predIncome===0?'<div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">ℹ️ 設定→「翔月収入」を先行入力すると予測が表示されます</div>':''}
+    </div>`;
+  })();
+
   g('page-home').innerHTML=html;
 }
 window.toggleFormula=()=>{showFormula=!showFormula;renderHome();};
