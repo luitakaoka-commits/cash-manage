@@ -538,11 +538,23 @@ function renderBanks(){
     S.banks.forEach(b=>{
       const role=getBankRole(b.name),pend=pendingExp(b.id),bal=Number(b.currentBalance||0);
       const pct=Math.min(100,Math.max(0,bal>0?Math.round(pend/bal*100):0));
-      // 防衛帯口座は dlを使用、それ以外は def=0
       const defVal=role==='defense'?Number(S.settings.defenseLine||150000):0;
       const{color:bColor,warnText:bWarn}=balanceStatus(bal,pend,defVal);
       const surplus=bal-pend;
-     html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px;color:${bColor}">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${role!=='savings'?`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>当座未決済 ${fmt(pend)}</span><span style="color:${bColor};font-weight:700">余力 ${fmt(surplus)}</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div>${bWarn?`<div style="margin-top:6px;font-size:12px;color:var(--red)">${bWarn}</div>`:''}</div>`:'<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>'}</div>`;
+      let gaugeHtml='';
+      if(role!=='savings'){
+        gaugeHtml='<div style="margin-top:10px">';
+        gaugeHtml+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px">';
+        gaugeHtml+='<span>当座未決済 '+fmt(pend)+'</span>';
+        gaugeHtml+='<span style="color:'+bColor+';font-weight:700">余力 '+fmt(surplus)+'</span></div>';
+        gaugeHtml+='<div class="gauge-track"><div class="gauge-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div>';
+        if(bWarn) gaugeHtml+='<div style="margin-top:6px;font-size:12px;color:var(--red)">'+bWarn+'</div>';
+        gaugeHtml+='</div>';
+      } else {
+        gaugeHtml='<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>';
+      }
+      html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px;color:${bColor}">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${gaugeHtml}</div>`;
+    });
   }
   g('page-banks').innerHTML=html;
 }
