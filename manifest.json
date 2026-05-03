@@ -2,7 +2,7 @@
   "name": "MoneyFlow – キャッシュフロー管理",
   "short_name": "MoneyFlow",
   "description": "個人の資金を防衛・貯蓄・消費に仕切る未来型ダッシュボード",
-  "start_url": "./",
+ "start_url": "/cash-manage/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b0f19",
