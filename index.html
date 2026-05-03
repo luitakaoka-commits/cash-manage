@@ -10,7 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg0:#0b0f19;--bg1:#131c2e;--bg2:#1a2540;--glass:rgba(0,0,0,0.06);--gb:rgba(255,255,255,0.12);--blue:#38bdf8;--green:#4ade80;--red:#f87171;--purple:#a78bfa;--gold:#fbbf24;--text:#e2e8f0;--muted:#94a3b8}
+:root{--bg0:#0b0f19;--bg1:#131c2e;--bg2:#1a2540;--glass:rgba(255,255,255,0.06);--gb:rgba(255,255,255,0.12);--blue:#38bdf8;--green:#4ade80;--red:#f87171;--purple:#a78bfa;--gold:#fbbf24;--text:#e2e8f0;--muted:#94a3b8}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:var(--bg0);color:var(--text);overflow-x:hidden}
 body{display:flex;flex-direction:column;min-height:100vh}
@@ -135,9 +135,9 @@ select.ig option{background:#1a2540;color:var(--text)}
           <select id="tx-transfer-target" class="ig"><option value="self">自己振替（貯金等）</option><option value="external">外部振替（送金）</option></select></div>
       </div>
       <div style="margin-bottom:12px"><label class="lbl">メモ</label><input type="text" id="tx-memo" class="ig" placeholder="任意"></div>
-      <div style="display:flex;gap:16px;margin-bottom:16px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" id="tx-lending" class="toggle"> 立替</label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" id="tx-exclude" class="toggle"> 余力計算除外</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        <div><label class="lbl">内、立替金額（円）</label><input type="number" id="tx-lending-amount" class="ig" min="0" placeholder="0"></div>
+        <div><label class="lbl"></label><div style="height:100%;display:flex;align-items:flex-end;padding-bottom:2px"><label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer"><input type="checkbox" id="tx-exclude" class="toggle"> 余力計算除外</label></div></div>
       </div>
       <div style="display:flex;gap:10px">
         <button type="button" class="btn btn-ghost" style="flex:1" onclick="closeTxModal()">キャンセル</button>
@@ -337,12 +337,13 @@ function calcFree(){
 
 // ========== 共通集計関数：ロジックの一元化 ==========
 // 渡された取引配列からサマリーを計算する純粋関数
-// 収入(income) / 振替(transfer) / 貯金(savings) は計算外。
+// income / transfer / savings は計算外。立替は lendingAmount（内訳）で集計。
 // 戻り値: { burdenTotal, lendingTotal, realBurden }
 function calcSummary(txArray){
   const targets=txArray.filter(t=>t.type!=='income'&&t.type!=='transfer'&&t.type!=='savings');
   const burdenTotal=targets.reduce((s,t)=>s+Number(t.amount||0),0);
-  const lendingTotal=targets.filter(t=>t.isLending).reduce((s,t)=>s+Number(t.amount||0),0);
+  // lendingAmountは内訳金額。未定義の旧データは 0 として扱う
+  const lendingTotal=targets.reduce((s,t)=>s+Number(t.lendingAmount||0),0);
   return{burdenTotal,lendingTotal,realBurden:burdenTotal-lendingTotal};
 }
 function nextCreditDate(){
@@ -399,7 +400,7 @@ function renderHome(){
   html+=`<div class="gc"><div class="sec" style="margin-top:0">未決済サマリー</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div><div style="font-size:11px;color:var(--muted)">負担金額（立替含む）</div><div style="font-size:18px;font-weight:800;color:var(--red)">${fmt(allBurden)}</div></div><div><div style="font-size:11px;color:var(--muted)">実質負担金額（立替除く）</div><div style="font-size:18px;font-weight:800;color:var(--gold)">${fmt(burdenTotal)}</div></div></div>${lendTotal>0?`<div style="margin-top:8px;font-size:13px;color:var(--purple)">🤝 立替中: ${fmt(lendTotal)}</div>`:''}</div>`;
   if(pendingTxs.length>0){
     html+=`<div class="gc"><div class="sec" style="margin-top:0">直近の未決済取引</div>`;
-    pendingTxs.forEach(t=>{const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings';html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${t.isLending?'<span class="badge bp">立替</span>':''}<span style="font-size:11px;color:var(--muted)">${t.date}</span></div><div style="font-size:13px;color:var(--muted)">${esc(t.memo||'（メモなし）')}${b?' / '+esc(b.name):''}</div></div><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:15px;flex-shrink:0">${isInc?'+':'−'}${fmt(t.amount)}</div></div>`;});
+    pendingTxs.forEach(t=>{const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',la=Number(t.lendingAmount||0);html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:2px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${la>0?`<span class="badge bp">内立替: ${fmt(la)}</span>`:''}<span style="font-size:11px;color:var(--muted)">${t.date}</span></div><div style="font-size:13px;color:var(--muted)">${esc(t.memo||'（メモなし）')}${b?' / '+esc(b.name):''}</div></div><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:15px;flex-shrink:0">${isInc?'+':'−'}${fmt(t.amount)}</div></div>`;});
     html+='</div>';
   }
   g('page-home').innerHTML=html;
@@ -415,8 +416,8 @@ function renderTransactions(){
   else{
     html+='<div class="gc" style="padding:10px 14px">';
     filtered.forEach(t=>{
-      const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',isPast=t.date<today;
-      html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:3px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${t.isLending?'<span class="badge bp">立替</span>':''}${t.excludeFromCalc?'<span class="badge bm">除外</span>':''}${t.cardName?`<span class="badge bm">${esc(t.cardName)}</span>`:''}</div><div style="font-size:13px;margin-bottom:2px">${esc(t.memo||'（メモなし）')}</div><div style="font-size:11px;color:var(--muted)">${t.date}${b?' / '+esc(b.name):''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0"><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:16px">${isInc?'+':'−'}${fmt(t.amount)}</div><div style="display:flex;gap:4px">${txTab==='pending'&&!t.isLending&&isPast?`<button class="btn btn-g btn-sm" onclick="completeTx('${t.id}')">完了</button>`:''}${txTab==='pending'&&t.isLending?`<button class="btn btn-sm" style="background:linear-gradient(135deg,#a78bfa,#7c3aed);color:#fff" onclick="collectTx('${t.id}')">回収</button>`:''}<button class="btn btn-ghost btn-sm" onclick="editTxModal('${t.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteTx('${t.id}')"><i class="fa fa-trash"></i></button></div></div></div>`;
+      const b=S.banks.find(b=>b.id===t.bankId),isInc=t.type==='income'||t.type==='savings',isPast=t.date<today,la=Number(t.lendingAmount||0);
+      html+=`<div class="tx-row"><div style="flex:1;min-width:0"><div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:3px"><span class="badge ${txTypeBadge(t.type)}">${txTypeLabel(t.type)}</span>${la>0?`<span class="badge bp">内立替: ${fmt(la)}</span>`:''}${t.excludeFromCalc?'<span class="badge bm">除外</span>':''}${t.cardName?`<span class="badge bm">${esc(t.cardName)}</span>`:''}</div><div style="font-size:13px;margin-bottom:2px">${esc(t.memo||'（メモなし）')}</div><div style="font-size:11px;color:var(--muted)">${t.date}${b?' / '+esc(b.name):''}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0"><div class="${isInc?'apos':'aneg'}" style="font-weight:700;font-size:16px">${isInc?'+':'−'}${fmt(t.amount)}</div><div style="display:flex;gap:4px">${txTab==='pending'&&isPast?`<button class="btn btn-g btn-sm" onclick="completeTx('${t.id}')">完了</button>`:''}<button class="btn btn-ghost btn-sm" onclick="editTxModal('${t.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteTx('${t.id}')"><i class="fa fa-trash"></i></button></div></div></div>`;
     });
     html+='</div>';
   }
@@ -469,11 +470,11 @@ window.saveGoals=async()=>{await db.collection('users').doc(S.uid).collection('s
 window.saveIncomes=async()=>{await db.collection('users').doc(S.uid).collection('settings').doc('main').set({income9:Number(v('set-inc9')||0),income15:Number(v('set-inc15')||0)},{merge:true});showToast('収入設定を保存しました');};
 window.saveNextIncomes=async()=>{await db.collection('users').doc(S.uid).collection('settings').doc('main').set({nextIncome9:Number(v('set-ninc9')||0),nextIncome15:Number(v('set-ninc15')||0)},{merge:true});showToast('翌月収入を保存しました');};
 // ========== TX MODAL ==========
-window.openTxModal=()=>{g('tx-modal-title').textContent='取引を追加';g('tx-id').value='';g('tx-date').value=jstToday();g('tx-amount').value='';g('tx-type').value='credit_card';g('tx-memo').value='';g('tx-lending').checked=false;g('tx-exclude').checked=false;g('tx-card').value='';populateBankSel('tx-bank');populateBankSel('tx-bank-to');onTxTypeChange();g('tx-modal').classList.add('open');};
+window.openTxModal=()=>{g('tx-modal-title').textContent='取引を追加';g('tx-id').value='';g('tx-date').value=jstToday();g('tx-amount').value='';g('tx-lending-amount').value='';g('tx-type').value='credit_card';g('tx-memo').value='';g('tx-exclude').checked=false;g('tx-card').value='';populateBankSel('tx-bank');populateBankSel('tx-bank-to');onTxTypeChange();g('tx-modal').classList.add('open');};
 window.closeTxModal=()=>g('tx-modal').classList.remove('open');
-window.editTxModal=id=>{const t=S.txs.find(t=>t.id===id);if(!t)return;g('tx-modal-title').textContent='取引を編集';g('tx-id').value=t.id;g('tx-date').value=t.date||'';g('tx-amount').value=t.amount||'';g('tx-type').value=t.type||'credit_card';g('tx-memo').value=t.memo||'';g('tx-lending').checked=!!t.isLending;g('tx-exclude').checked=!!t.excludeFromCalc;g('tx-card').value=t.cardName||'';populateBankSel('tx-bank');populateBankSel('tx-bank-to');g('tx-bank').value=t.bankId||'';g('tx-bank-to').value=t.bankIdTo||'';g('tx-transfer-target').value=t.transferTarget||'self';onTxTypeChange();g('tx-modal').classList.add('open');};
+window.editTxModal=id=>{const t=S.txs.find(t=>t.id===id);if(!t)return;g('tx-modal-title').textContent='取引を編集';g('tx-id').value=t.id;g('tx-date').value=t.date||'';g('tx-amount').value=t.amount||'';g('tx-lending-amount').value=t.lendingAmount||'';g('tx-type').value=t.type||'credit_card';g('tx-memo').value=t.memo||'';g('tx-exclude').checked=!!t.excludeFromCalc;g('tx-card').value=t.cardName||'';populateBankSel('tx-bank');populateBankSel('tx-bank-to');g('tx-bank').value=t.bankId||'';g('tx-bank-to').value=t.bankIdTo||'';g('tx-transfer-target').value=t.transferTarget||'self';onTxTypeChange();g('tx-modal').classList.add('open');};
 window.onTxTypeChange=()=>{const tp=v('tx-type');g('tx-card-wrap').style.display=tp==='credit_card'?'':'none';g('tx-bankto-wrap').style.display=tp==='transfer'?'':'none';};
-window.saveTx=async e=>{e.preventDefault();const id=v('tx-id'),base=db.collection('users').doc(S.uid).collection('transactions');const data={date:v('tx-date'),amount:Number(v('tx-amount')),type:v('tx-type'),bankId:v('tx-bank'),memo:v('tx-memo'),status:'pending',isLending:g('tx-lending').checked,excludeFromCalc:g('tx-exclude').checked,cardName:v('tx-card')||'',bankIdTo:v('tx-bank-to')||'',transferTarget:v('tx-transfer-target')||'self',createdAt:new Date().toISOString()};if(id)await base.doc(id).update(data);else await base.add(data);closeTxModal();showToast(id?'取引を更新しました':'取引を追加しました');};
+window.saveTx=async e=>{e.preventDefault();const id=v('tx-id'),base=db.collection('users').doc(S.uid).collection('transactions');const lendingAmount=Math.min(Number(v('tx-lending-amount')||0),Number(v('tx-amount')||0));const data={date:v('tx-date'),amount:Number(v('tx-amount')),lendingAmount,type:v('tx-type'),bankId:v('tx-bank'),memo:v('tx-memo'),status:'pending',excludeFromCalc:g('tx-exclude').checked,cardName:v('tx-card')||'',bankIdTo:v('tx-bank-to')||'',transferTarget:v('tx-transfer-target')||'self',createdAt:new Date().toISOString()};if(id)await base.doc(id).update(data);else await base.add(data);closeTxModal();showToast(id?'取引を更新しました':'取引を追加しました');};
 // ========== TX ACTIONS ==========
 window.completeTx=async id=>{const t=S.txs.find(t=>t.id===id);if(!t)return;const isInc=t.type==='income',isSav=t.type==='savings';const base=db.collection('users').doc(S.uid);const batch=db.batch();batch.update(base.collection('transactions').doc(id),{status:'completed'});if(t.bankId){const bank=S.banks.find(b=>b.id===t.bankId);if(bank){const delta=isInc||isSav?Number(t.amount||0):-Number(t.amount||0);batch.update(base.collection('banks').doc(t.bankId),{currentBalance:firebase.firestore.FieldValue.increment(delta)});}if(isSav&&t.bankIdTo)batch.update(base.collection('banks').doc(t.bankIdTo),{currentBalance:firebase.firestore.FieldValue.increment(Number(t.amount||0))});}if(isSav)batch.set(base.collection('settings').doc('main'),{savingsBalance:firebase.firestore.FieldValue.increment(Number(t.amount||0))},{merge:true});await batch.commit();showToast('✅ 完了！残高を更新しました');};
 window.collectTx=async id=>{await db.collection('users').doc(S.uid).collection('transactions').doc(id).update({status:'collected'});showToast('🤝 回収済みにしました');};
