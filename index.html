@@ -327,12 +327,23 @@ function getSavingsBank(){ return S.banks.find(b=>getBankRole(b.name)==='savings
 
 function pendingExp(bankId){
   const today=jstToday();
-  // 立替金は未支出決済に加えて計算することを禁止 → isLendingを除外
-  return S.txs.filter(t=>t.status==='pending'&&t.bankId===bankId&&t.date>=today&&t.type!=='income'&&t.type!=='savings'&&!t.excludeFromCalc&&!t.isLending).reduce((s,t)=>s+Number(t.amount||0),0);
+  // 立替金も口座から出る「CF負債」なので必ず含める（捕漏経営解除）
+  return S.txs.filter(t=>t.status==='pending'&&t.bankId===bankId&&t.date>=today&&t.type!=='income'&&t.type!=='savings'&&!t.excludeFromCalc).reduce((s,t)=>s+Number(t.amount||0),0);
 }
 function calcFree(){
   const db_=getDefenseBank(); if(!db_) return null;
   return Number(db_.currentBalance||0)-pendingExp(db_.id)-Number(S.settings.defenseLine||150000);
+}
+
+// ========== 共通集計関数：ロジックの一元化 ==========
+// 渡された取引配列からサマリーを計算する純粋関数
+// 収入(income) / 振替(transfer) / 貯金(savings) は計算外。
+// 戻り値: { burdenTotal, lendingTotal, realBurden }
+function calcSummary(txArray){
+  const targets=txArray.filter(t=>t.type!=='income'&&t.type!=='transfer'&&t.type!=='savings');
+  const burdenTotal=targets.reduce((s,t)=>s+Number(t.amount||0),0);
+  const lendingTotal=targets.filter(t=>t.isLending).reduce((s,t)=>s+Number(t.amount||0),0);
+  return{burdenTotal,lendingTotal,realBurden:burdenTotal-lendingTotal};
 }
 function nextCreditDate(){
   const today=jstToday(), dates=S.txs.filter(t=>t.type==='credit_card'&&t.status==='pending'&&t.date>=today).map(t=>t.date).sort();
@@ -361,12 +372,8 @@ function renderHome(){
   const free=calcFree(),dl=Number(S.settings.defenseLine||150000);
   const nc=nextCreditDate(),is=incomeSchedule(),today=jstToday();
   const pendingTxs=S.txs.filter(t=>t.status==='pending').slice(0,5);
-  // 負担合計 = pending中の全支出（収入・貯金除く）
-  const allBurden=S.txs.filter(t=>t.status==='pending'&&t.type!=='income'&&t.type!=='savings').reduce((s,t)=>s+Number(t.amount||0),0);
-  // 立替合計（pending中）
-  const lendTotal=S.txs.filter(t=>t.status==='pending'&&t.isLending).reduce((s,t)=>s+Number(t.amount||0),0);
-  // 実質負担 = 負担合計 − 立替
-  const burdenTotal=allBurden-lendTotal;
+  // calcSummaryにpending取引のみを渡す（ホームの視点: 未決済の損益）
+  const{burdenTotal:allBurden,lendingTotal:lendTotal,realBurden:burdenTotal}=calcSummary(S.txs.filter(t=>t.status==='pending'));
   let html='';
   if(def){
     const bal=Number(def.currentBalance||0),pend=pendingExp(def.id);
@@ -430,16 +437,12 @@ function renderBanks(){
 function renderRecords(){
   const months=[],now=jstNow();
   for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);}
-  // ④ pending含む全取引で集計（収入・振替除く）
+  // ④ calcSummaryを利用し月ごとに集計（ステータス不問・全取引対象）
   const data=months.map(ym=>{
-    const txs=S.txs.filter(t=>t.date&&t.date.startsWith(ym)&&t.type!=='income'&&t.type!=='transfer');
-    // 負担合計（pending/completed/collectedすべて、貯金除く）
-    const burden=txs.filter(t=>t.type!=='savings').reduce((s,t)=>s+Number(t.amount||0),0);
-    // ③ 立替：ステータスに関わらず全件（回収済みでも「自分が立て替えた事実」は変わらない）
-    const lending=txs.filter(t=>t.isLending).reduce((s,t)=>s+Number(t.amount||0),0);
-    // 貯金：貯金取引の合計
-    const savings=txs.filter(t=>t.type==='savings').reduce((s,t)=>s+Number(t.amount||0),0);
-    return{ym,burden,real:burden-lending,savings,lending};
+    const monthTxs=S.txs.filter(t=>t.date&&t.date.startsWith(ym));
+    const{burdenTotal,lendingTotal,realBurden}=calcSummary(monthTxs);
+    const savings=monthTxs.filter(t=>t.type==='savings').reduce((s,t)=>s+Number(t.amount||0),0);
+    return{ym,burden:burdenTotal,real:realBurden,savings,lending:lendingTotal};
   });
   // ⑤ 貯金口座の現在残高カード
   const savBank=getSavingsBank();
