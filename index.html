@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="ja"><head>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>MoneyFlow – キャッシュフロー管理</title>
 <meta name="description" content="個人の資金を防衛・貯蓄・消費に完全に仕切る未来型キャッシュフロー管理PWA">
@@ -65,7 +67,8 @@ select.ig option{background:#1a2540;color:var(--text)}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--gb);border-radius:2px}
 .divider{height:1px;background:var(--gb);margin:12px 0}
 @media(min-width:600px){.page{max-width:580px;margin:0 auto}.mbox{border-radius:22px;margin:auto}.modal-bg{align-items:center}}
-</style></head>
+</style>
+</head>
 <body>
 <!-- LOGIN -->
 <div id="login-screen">
@@ -80,7 +83,6 @@ select.ig option{background:#1a2540;color:var(--text)}
     <div style="margin-bottom:16px"><label class="lbl">パスワード</label><input id="auth-pass" type="password" class="ig" placeholder="6文字以上" autocomplete="current-password"></div>
     <button class="btn btn-p" style="width:100%;margin-bottom:10px" onclick="doLogin()"><i class="fa fa-sign-in-alt"></i> ログイン</button>
     <button class="btn btn-ghost" style="width:100%" onclick="doRegister()"><i class="fa fa-user-plus"></i> 新規登録</button>
-    <p style="text-align:center;color:var(--muted);font-size:11px;margin-top:12px">※ firebaseConfigをご自身の値に書き換えてください</p>
   </div>
 </div>
 <!-- APP SHELL -->
@@ -541,19 +543,7 @@ function renderBanks(){
       const defVal=role==='defense'?Number(S.settings.defenseLine||150000):0;
       const{color:bColor,warnText:bWarn}=balanceStatus(bal,pend,defVal);
       const surplus=bal-pend;
-      let gaugeHtml='';
-      if(role!=='savings'){
-        gaugeHtml='<div style="margin-top:10px">';
-        gaugeHtml+='<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px">';
-        gaugeHtml+='<span>当座未決済 '+fmt(pend)+'</span>';
-        gaugeHtml+='<span style="color:'+bColor+';font-weight:700">余力 '+fmt(surplus)+'</span></div>';
-        gaugeHtml+='<div class="gauge-track"><div class="gauge-fill" style="width:'+pct+'%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div>';
-        if(bWarn) gaugeHtml+='<div style="margin-top:6px;font-size:12px;color:var(--red)">'+bWarn+'</div>';
-        gaugeHtml+='</div>';
-      } else {
-        gaugeHtml='<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>';
-      }
-      html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px;color:${bColor}">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${gaugeHtml}</div>`;
+      html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px;color:${bColor}">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${role!=='savings'?`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>当座未決済 ${fmt(pend)}</span><span style="color:${bColor};font-weight:700">余力 ${fmt(surplus)}</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div>${bWarn?`<div style="margin-top:6px;font-size:12px;color:var(--red)">${bWarn}</div>`:''}</div>`:'<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>'}</div>`;
     });
   }
   g('page-banks').innerHTML=html;
@@ -735,4 +725,5 @@ if('serviceWorker' in navigator){
 }
 updateClock();
 </script>
-</body></html>
+</body>
+</html>
