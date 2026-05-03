@@ -326,9 +326,9 @@ function getEntBank(){ return S.banks.find(b=>getBankRole(b.name)==='entertainme
 function getSavingsBank(){ return S.banks.find(b=>getBankRole(b.name)==='savings')||null; }
 
 function pendingExp(bankId){
-  const today=jstToday();
-  // 立替金も口座から出る「CF負債」なので必ず含める（捕漏経営解除）
-  return S.txs.filter(t=>t.status==='pending'&&t.bankId===bankId&&t.date>=today&&t.type!=='income'&&t.type!=='savings'&&!t.excludeFromCalc).reduce((s,t)=>s+Number(t.amount||0),0);
+  const today=jstToday(), next14=getNextDeadline();
+  // 当座分（次の14日まで）の未決済のみを対象にする
+  return S.txs.filter(t=>t.status==='pending'&&t.bankId===bankId&&t.date>=today&&t.date<=next14&&t.type!=='income'&&t.type!=='savings'&&!t.excludeFromCalc).reduce((s,t)=>s+Number(t.amount||0),0);
 }
 function calcFree(){
   const db_=getDefenseBank(); if(!db_) return null;
@@ -345,6 +345,23 @@ function calcSummary(txArray){
   // lendingAmountは内訳金額。未定義の旧データは 0 として扱う
   const lendingTotal=targets.reduce((s,t)=>s+Number(t.lendingAmount||0),0);
   return{burdenTotal,lendingTotal,realBurden:burdenTotal-lendingTotal};
+}
+
+// 次の14日（当座期限）を自動判定する関数
+// 今日が15日以降なら翔月の14日、それ以外なら当月の14日
+function getNextDeadline(){
+  const d=jstNow(),yr=d.getFullYear(),mo=d.getMonth()+1,day=d.getDate();
+  if(day<15) return `${yr}-${String(mo).padStart(2,'0')}-14`;
+  const nyr=mo===12?yr+1:yr,nmo=mo===12?1:mo+1;
+  return `${nyr}-${String(nmo).padStart(2,'0')}-14`;
+}
+
+// 3段階色分けヘルパー
+// 赤: bal<pend  オレンジ: pend<=bal<pend+def  緑: bal>=pend+def
+function balanceStatus(bal, pend, def=0){
+  if(bal<pend) return {color:'var(--red)',warnText:'❌ お金が足りません！'};
+  if(def>0 && bal<pend+def) return {color:'var(--gold)',warnText:'⚠️ 防衛ラインが確保できません'};
+  return {color:'var(--green)',warnText:''};
 }
 function nextCreditDate(){
   const today=jstToday(), dates=S.txs.filter(t=>t.type==='credit_card'&&t.status==='pending'&&t.date>=today).map(t=>t.date).sort();
@@ -392,8 +409,9 @@ function renderHome(){
   if(def){
     const bal=Number(def.currentBalance||0),pend=pendingExp(def.id);
     const pct=Math.min(100,Math.max(0,Math.round((bal/Math.max(dl,1))*100)));
-    const fc=free!=null&&free<0?'aneg':'apos';
-    html+=`<div class="gc" style="border:1px solid rgba(56,189,248,0.3)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge bb">🛡 生活防衛</span><span style="font-size:11px;color:var(--muted)">${esc(def.name)}</span></div><div style="font-size:30px;font-weight:900;margin:8px 0">${fmt(bal)}</div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px"><span>防衛ライン ${fmt(dl)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><div><div style="font-size:11px;color:var(--muted)">未決済支出</div><div style="font-weight:700;color:var(--red)">${fmt(pend)}</div></div><div><div style="font-size:11px;color:var(--muted)">余力</div><div class="${fc}" style="font-weight:800;font-size:18px">${free!=null?fmt(free):'---'}</div></div></div><div style="margin-top:8px"><button onclick="window.toggleFormula()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0"><i class="fa fa-calculator"></i> 計算式を${showFormula?'隠す':'表示'}</button><div id="formula-box" style="display:${showFormula?'block':'none'};margin-top:6px;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px;font-size:12px;color:var(--muted)">${fmt(bal)} − ${fmt(pend)}（未決済） − ${fmt(dl)}（防衛ライン） = <span class="${fc}"><b>${free!=null?fmt(free):'---'}</b></span></div></div>${free!=null&&free<0?'<div style="margin-top:8px;background:rgba(248,113,113,0.15);border:1px solid var(--red);border-radius:10px;padding:8px;font-size:12px;color:var(--red)">⚠️ 余力がマイナス！防衛ラインを下回っています</div>':''}</div>`;
+    // 3段階色分け（防衛帯口座は def=dlを使用）
+    const{color:freeColor,warnText}=balanceStatus(bal,pend,dl);
+    html+=`<div class="gc" style="border:1px solid rgba(56,189,248,0.3)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge bb">🛡 生活防衛</span><span style="font-size:11px;color:var(--muted)">${esc(def.name)}</span></div><div style="font-size:30px;font-weight:900;margin:8px 0">${fmt(bal)}</div><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px"><span>防衛ライン ${fmt(dl)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%"></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px"><div><div style="font-size:11px;color:var(--muted)">当座未決済</div><div style="font-weight:700;color:var(--red)">${fmt(pend)}</div></div><div><div style="font-size:11px;color:var(--muted)">余力</div><div style="font-weight:800;font-size:18px;color:${freeColor}">${free!=null?fmt(free):'---'}</div></div></div><div style="margin-top:8px"><button onclick="window.toggleFormula()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0"><i class="fa fa-calculator"></i> 計算式を${showFormula?'隠す':'表示'}</button><div id="formula-box" style="display:${showFormula?'block':'none'};margin-top:6px;background:rgba(255,255,255,0.04);border-radius:10px;padding:10px;font-size:12px;color:var(--muted)">${fmt(bal)} − ${fmt(pend)}（当座未決済） − ${fmt(dl)}（防衛ライン） = <span style="color:${freeColor}"><b>${free!=null?fmt(free):'---'}</b></span></div></div>${warnText?`<div style="margin-top:8px;border-radius:10px;padding:8px;font-size:12px;background:rgba(248,113,113,0.15);border:1px solid var(--red);color:var(--red)">${warnText}</div>`:''}</div>`;
   } else {
     html+=`<div class="gc" style="text-align:center;color:var(--muted)"><i class="fa fa-university" style="font-size:30px;display:block;margin-bottom:8px"></i><p>生活防衛口座（三菱UFJ等）を追加してください</p><button class="btn btn-p btn-sm" onclick="showPage('banks')">口座管理へ</button></div>`;
   }
@@ -406,8 +424,9 @@ function renderHome(){
     const bal=Number(bk.currentBalance||0), pend=pendingExp(bk.id);
     const pct=Math.min(100,Math.max(0,bal>0?Math.round(pend/bal*100):0));
     const surplus=bal-pend;
-    const sc=surplus<0?'aneg':'apos';
-    html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge ${badge}">${icon} ${label}</span><span style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">${esc(bk.name)}</span></div><div style="font-size:24px;font-weight:900;margin:6px 0">${fmt(bal)}</div>${role!=='savings'?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px"><span>未決済 ${fmt(pend)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div><div style="font-size:12px;margin-top:6px">余力 <span class="${sc}" style="font-weight:700">${fmt(surplus)}</span></div>`:'<div style="font-size:12px;color:var(--muted);margin-top:4px">🔒 開かずの金庫</div>'}</div>`;
+    // サブ口座は防衛ラインなし (def=0) → 赤/緑の2段階
+    const{color:sColor}=balanceStatus(bal,pend,0);
+    html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span class="badge ${badge}">${icon} ${label}</span><span style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%">${esc(bk.name)}</span></div><div style="font-size:24px;font-weight:900;margin:6px 0">${fmt(bal)}</div>${role!=='savings'?`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px"><span>当座未決済 ${fmt(pend)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div><div style="font-size:12px;margin-top:6px">余力 <span style="font-weight:700;color:${sColor}">${fmt(surplus)}</span></div>`:'<div style="font-size:12px;color:var(--muted);margin-top:4px">🔒 開かずの金庫</div>'}</div>`;
   });
   html+=`<div class="gc" style="margin-top:12px"><div class="sec" style="margin-top:0">収入スケジュール</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px"><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px"><div style="color:var(--muted);font-size:11px">今月9日分</div><div style="font-weight:700">${is.d9}</div><div class="apos">${fmt(is.inc9)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px"><div style="color:var(--muted);font-size:11px">今月15日分</div><div style="font-weight:700">${is.d15}</div><div class="apos">${fmt(is.inc15)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px;opacity:.7"><div style="color:var(--muted);font-size:11px">翌月9日分</div><div style="font-weight:700">${is.d9n}</div><div class="apos">${fmt(is.ninc9)}</div></div><div style="padding:8px;background:rgba(255,255,255,0.04);border-radius:10px;opacity:.7"><div style="color:var(--muted);font-size:11px">翌月15日分</div><div style="font-weight:700">${is.d15n}</div><div class="apos">${fmt(is.ninc15)}</div></div></div>${nc?`<div style="margin-top:10px;font-size:13px">💳 次回クレカ引落日: <b style="color:var(--gold)">${nc}</b></div>`:''}</div>`;
   // ===== 分割サマリー =====
@@ -515,7 +534,17 @@ window.setTxTab=tab=>{txTab=tab;renderTransactions();};
 function renderBanks(){
   let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h2 style="margin:0;font-size:18px;font-weight:800">口座管理</h2><button class="btn btn-p btn-sm" onclick="openBankModal()"><i class="fa fa-plus"></i> 追加</button></div>`;
   if(!S.banks.length){html+=`<div class="gc" style="text-align:center;color:var(--muted)"><i class="fa fa-university" style="font-size:36px;display:block;margin-bottom:10px"></i>口座を追加してください</div>`;}
-  else{S.banks.forEach(b=>{const role=getBankRole(b.name),pend=pendingExp(b.id),bal=Number(b.currentBalance||0),pct=Math.min(100,Math.max(0,bal>0?Math.round(pend/bal*100):0));html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${role!=='savings'?`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>予定支出 ${fmt(pend)}</span><span>${pct}%</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div></div>`:'<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>'}</div>`;});}
+  else{
+    S.banks.forEach(b=>{
+      const role=getBankRole(b.name),pend=pendingExp(b.id),bal=Number(b.currentBalance||0);
+      const pct=Math.min(100,Math.max(0,bal>0?Math.round(pend/bal*100):0));
+      // 防衛帯口座は dlを使用、それ以外は def=0
+      const defVal=role==='defense'?Number(S.settings.defenseLine||150000):0;
+      const{color:bColor,warnText:bWarn}=balanceStatus(bal,pend,defVal);
+      const surplus=bal-pend;
+      html+=`<div class="gc"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><span class="badge ${roleBadge(role)}">${roleLabel(role)}</span><div style="font-size:16px;font-weight:800;margin-top:6px">${esc(b.name)}</div><div style="font-size:22px;font-weight:900;margin-top:4px;color:${bColor}">${fmt(bal)}</div></div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editBankModal('${b.id}')"><i class="fa fa-edit"></i></button><button class="btn btn-r btn-sm" onclick="deleteBank('${b.id}')"><i class="fa fa-trash"></i></button></div></div>${role!=='savings'?`<div style="margin-top:10px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>当座未決済 ${fmt(pend)}</span><span style="color:${bColor};font-weight:700">余力 ${fmt(surplus)}</span></div><div class="gauge-track"><div class="gauge-fill" style="width:${pct}%;background:linear-gradient(90deg,var(--green),var(--gold),var(--red))"></div></div>${bWarn?`<div style="margin-top:6px;font-size:12px;color:var(--red)">${bWarn}</div>":""}</div>":'<div style="margin-top:8px;font-size:12px;color:var(--muted)">🔒 開かずの金庫 – 残高参照のみ</div>'}</div>`;
+    });
+  }
   g('page-banks').innerHTML=html;
 }
 </script>
